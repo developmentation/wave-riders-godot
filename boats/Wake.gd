@@ -60,7 +60,10 @@ void fragment() {
 	// Fresh sheet between them right behind the boat so the V has a root.
 	float sheet = (1.0 - smoothstep(0.0, 0.9, u)) * 0.2 * pow(age_fade, 3.0);
 	float density = (churn + arms + sheet) * strength;
-	if (density < 0.19) { discard; }
+	// No hard discard threshold here: on a wide, slow hull the churn density crosses a fixed
+	// cutoff along one transverse line and the foam ends in a straight edge. Fade instead.
+	density *= smoothstep(0.03, 0.30, density);
+	if (density < 0.01) { discard; }
 	// Foam texture in world space so it stays put while the boat moves on.
 	vec4 fx = texture(foam_tex, world_pos.xz * 0.16 + vec2(TIME * 0.004, -TIME * 0.003));
 	vec4 fx2 = texture(foam_tex, world_pos.xz * 0.55 - vec2(TIME * 0.012, TIME * 0.009));
