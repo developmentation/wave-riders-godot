@@ -362,6 +362,7 @@ func _wire_hud() -> void:
 		"race_again": func(): if world_id != "": enter_world(world_id),
 		"matte": func(): set_matte(not matte),
 		"garage": func(): resume(true); await enter_world("hub"); show_garage(),
+		"quit": func(): print("[main] quit"); get_tree().quit(),
 	}
 	for sig in wires:
 		if hud.has_signal(sig):
@@ -1130,6 +1131,10 @@ func get_harness_state() -> Dictionary:
 		st["speed_kmh"] = snappedf(Race.body_speed(player) * 3.6, 0.1)
 		st["heading"] = snappedf(Race.body_heading(player), 0.001)
 		st["sea"] = snappedf(_sea_h(p.x, p.z), 0.01)
+		if "airborne" in player:
+			st["airborne"] = player.airborne
+		if camera.has_method("view_name"):
+			st["view"] = camera.view_name()
 	if race:
 		var pl := race.player
 		var standings := []

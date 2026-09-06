@@ -28,6 +28,7 @@ signal race_again
 signal garage
 signal matte
 signal fullscreen
+signal quit
 signal tilt(enabled: bool)
 
 const SCREENS := ["title", "garage", "hub", "race", "results", "paused"]
@@ -307,6 +308,8 @@ func _build() -> void:
 	_title_corner = _hbox(title, "Corner")
 	_btn(_title_corner, "Mute", "sys", "circle", "sound", "", "mute")
 	_btn(_title_corner, "Full", "sys", "circle", "full", "", "fullscreen")
+	var tq := _btn(_title_corner, "Quit", "sys", "circle", "txt:✖", "", "quit")
+	tq.style = "red"
 
 	# ----------------------------------------------------------------- garage
 	var gar := _screen("garage")
@@ -465,7 +468,7 @@ func _build() -> void:
 	_pause_box = _vbox(_pause_margin, "Box")
 	_pause_h = HudTheme.make_label("Paused", 40)
 	_pause_box.add_child(_pause_h)
-	for spec in [["Resume", "green", "play", "Resume", "resume"], ["Garage", "yellow", "txt:🚤", "Change boat", "garage"], ["Exit", "blue", "anchor", "Back to harbour", "exit"]]:
+	for spec in [["Resume", "green", "play", "Resume", "resume"], ["Garage", "yellow", "txt:🚤", "Change boat", "garage"], ["Exit", "blue", "anchor", "Back to harbour", "exit"], ["Quit", "red", "txt:✖", "Quit game", "quit"]]:
 		var b := _btn(_pause_box, spec[0], spec[1], "pill", spec[2], spec[3], spec[4])
 		b.align_start = true
 		b.size_flags_horizontal = Control.SIZE_FILL

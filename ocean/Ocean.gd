@@ -503,7 +503,7 @@ func _derive_spectrum() -> void:
 	var hs_s := maxf(float(weather.swell_hs), 0.0)
 	var period := maxf(float(weather.swell_period), 3.0)
 	var ws := TAU / period
-	var sigma := 0.08 * ws
+	var sigma := 0.13 * ws
 	var m0_s := pow(hs_s / 4.0, 2.0)
 	var swell_amp := m0_s / (sigma * sqrt(TAU))
 	var wind_dir := deg_to_rad(float(weather.wind_dir_deg))

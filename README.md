@@ -19,7 +19,9 @@ Windows 64-bit build from https://godotengine.org/download/windows/ and unzip it
 | Steer | A / D or ← / → | left stick |
 | Boost / horn | Space / H | B |
 | Submarine dive / rise | Q / E | LB / RB |
-| Camera / reset boat / pause | C / R / Esc | X / Y / Start |
+| Camera (chase, bow, close, high) / reset boat / pause | C / R / Esc | X / Y / Start |
+
+Esc opens the pause menu, which has **Quit game**; the title screen has a quit button in its corner.
 
 Quality presets (`scripts/Quality.gd`): `low`, `medium` (60 fps on an Intel UHD), `high` (default on a
 discrete GPU), `ultra` (1024² FFT, SDFGI, volumetric fog). Force one with

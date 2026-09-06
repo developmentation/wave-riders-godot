@@ -243,7 +243,8 @@ func apply_weather(w: Dictionary, hs: float, immediate := false) -> void:
 	sky_material.sun_disk_scale = 1.6 * (1.0 - storminess)
 	# a physical sky is dim at low sun; lift it so golden hour reads bright, not gloomy (not below the horizon)
 	var dusk_boost := 1.0 + 1.2 * (1.0 - smoothstep(0.0, 0.45, sin(elev))) * smoothstep(-0.05, 0.05, sin(elev))
-	_base_sky_energy = lerpf(1.0, 0.4, pow(storminess, 1.3)) * dusk_boost
+	# storm skies stay bright enough that the water still reflects a grey sky, not black
+	_base_sky_energy = lerpf(1.0, 0.8, pow(storminess, 1.3)) * dusk_boost
 	var want_night: Texture2D = _night_tex if elev < deg_to_rad(4.0) else null
 	if sky_material.night_sky != want_night:
 		sky_material.night_sky = want_night

@@ -189,7 +189,7 @@ const WORLDS := {
 		"weather": {
 			"key": "squall",
 			"patch": {
-				"wind_speed": 14.0, "gustiness": 0.5, "swell_hs": 4.5, "swell_period": 10.5, "choppiness": 1.3, "spread": 0.8,
+				"wind_speed": 17.0, "gustiness": 0.5, "swell_hs": 8.0, "swell_period": 10.0, "choppiness": 1.35, "spread": 0.8,
 				"rain": 0.9, "storm": 0.85, "fog": 0.18, "spray": 0.9, "lightning_rate": 0.6,
 				"sun_elevation": 0.2, "sun_azimuth": 3.0, "sun_intensity": 14.0, "turbidity": 6.0,
 				"cloud_coverage": 0.76, "cloud_density": 1.15, "cloud_bottom": 600.0, "cloud_top": 5200.0, "cloud_anvil": 0.6,
@@ -203,8 +203,8 @@ const WORLDS := {
 			# one big crescent wrapping the far side of the bay
 			{"x": 0.0, "z": 60.0, "radius": 100.0, "height": 58.0, "seed": 41, "shape": "crescent", "palms": 40, "warp": 0.2, "detail": 0.1,
 				"arc": {"r": 315.0, "a0": 22.0 * DEG, "a1": 158.0 * DEG, "thick": 72.0}},
-			{"x": -340.0, "z": -130.0, "radius": 48.0, "height": 15.0, "seed": 42, "palms": 8},
-			{"x": 350.0, "z": -140.0, "radius": 44.0, "height": 13.0, "seed": 43, "palms": 6},
+			{"x": -340.0, "z": -130.0, "radius": 48.0, "height": 24.0, "seed": 42, "palms": 8},
+			{"x": 350.0, "z": -140.0, "radius": 44.0, "height": 22.0, "seed": 43, "palms": 6},
 		],
 		"start": {"x": 0.0, "z": -65.0, "heading": 1.571},
 		# ellipse(0, 60, 205, 125), 7 gates, width 36
@@ -267,25 +267,25 @@ const WORLDS := {
 		"weather": {
 			"key": "storm",
 			"patch": {
-				# Beaufort 11 base; wind sea trimmed so the total integrates to Hs ~8 m
-				"wind_speed": 28.0, "gustiness": 0.6, "swell_hs": 13.0, "swell_period": 14.5, "choppiness": 1.35, "spread": 0.9,
+				# Beaufort 12: ~18 m measured Hs on an 11 s swell (190 m wavelength) - steep enough to launch off
+				"wind_speed": 30.0, "gustiness": 0.6, "swell_hs": 24.0, "swell_period": 11.0, "choppiness": 1.45, "spread": 0.9,
 				"rain": 1.0, "storm": 1.0, "fog": 0.5, "spray": 1.4, "lightning_rate": 1.5,
-				# sun just under the horizon: the sky is lit by the deck's own glow and the lightning
-				"sun_elevation": -0.12, "sun_azimuth": 2.9, "sun_intensity": 6.0, "turbidity": 7.0,
+				# sun barely up behind the murk: just enough directional light that the wave faces shade
+				"sun_elevation": 0.32, "sun_azimuth": 2.9, "sun_intensity": 16.0, "turbidity": 7.0,
 				"cloud_coverage": 0.8, "cloud_density": 1.2, "cloud_bottom": 480.0, "cloud_top": 5600.0, "cloud_anvil": 0.8,
-				"foam_strength": 1.1, "star_intensity": 0.35,
+				"foam_strength": 1.6, "star_intensity": 0.35,
 			},
 		},
-		"exposure": 0.6,
-		# thunder purple: red lifted level with green so the water goes violet-black
-		"water": {"scatter": [0.014, 0.018, 0.050], "absorb": [0.004, 0.011, 0.020]},
+		"exposure": 0.9,
+		# thunder slate: enough scatter that the wave faces read against the black troughs
+		"water": {"scatter": [0.030, 0.038, 0.070], "absorb": [0.004, 0.011, 0.020]},
 		"islands": [
 			# a huge crescent wrapping the whole north side of the bay; steep shelf so an 8 m trough
 			# over a long sandy shelf does not ground boats
 			{"x": 0.0, "z": 80.0, "radius": 120.0, "height": 82.0, "seed": 61, "shape": "crescent", "palms": 40, "warp": 0.18, "detail": 0.1, "shelf": 0.6,
 				"arc": {"r": 470.0, "a0": 20.0 * DEG, "a1": 160.0 * DEG, "thick": 90.0}},
-			{"x": -430.0, "z": -230.0, "radius": 50.0, "height": 17.0, "seed": 62, "palms": 8},
-			{"x": 440.0, "z": -270.0, "radius": 46.0, "height": 15.0, "seed": 63, "palms": 6},
+			{"x": -430.0, "z": -230.0, "radius": 50.0, "height": 34.0, "seed": 62, "palms": 8},
+			{"x": 440.0, "z": -270.0, "radius": 46.0, "height": 32.0, "seed": 63, "palms": 6},
 		],
 		"start": {"x": 0.0, "z": -110.0, "heading": 1.571},
 		# ellipse(0, 40, 250, 150), 6 gates, width 36
@@ -304,7 +304,7 @@ const WORLDS := {
 		"bounds": 850.0,
 		# periodic drama driven by update_world_events(); times in seconds
 		"events": {
-			"rogue": {"first": 18.0, "every": [35.0, 50.0], "height": 14.0, "radius": 200.0, "wavelength": 320.0, "distance": 420.0},
+			"rogue": {"first": 18.0, "every": [35.0, 50.0], "height": 26.0, "radius": 220.0, "wavelength": 340.0, "distance": 420.0},
 			"spout": {"first": 30.0, "every": [75.0, 110.0], "strength": 20.0, "distance": [520.0, 720.0], "min_start_dist": 400.0},
 			"lightning": {"first": 4.0, "every": [9.0, 16.0], "count": [4.0, 8.0], "radius": 1500.0},
 		},

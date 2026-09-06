@@ -213,7 +213,7 @@ func get_harness_state() -> Dictionary:
 		"pos": [snappedf(_pos.x, 0.01), snappedf(_pos.y, 0.01), snappedf(_pos.z, 0.01)],
 		"speed_kmh": snappedf(speed_kmh, 0.1),
 		"heading": snappedf(heading, 0.001),
-		"submersion": snappedf(submersion, 0.01),
+		"submersion": snappedf(submersion, 0.01), "airborne": airborne,
 		"bank_deg": snappedf(rad_to_deg(asin(clampf(right.y, -1, 1))), 0.1),
 		"throttle": snappedf(throttle, 0.01), "steer": snappedf(steer, 0.01),
 	}

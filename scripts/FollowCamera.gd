@@ -12,6 +12,7 @@ extends Camera3D
 
 const VIEWS := [
 	{"name": "chase", "dist": 1.9, "height": 0.75, "look_ahead": 1.6, "look_up": 0.35, "fov": 52.0},
+	{"name": "bow", "bow": true, "fov": 74.0},
 	{"name": "close", "dist": 1.25, "height": 0.55, "look_ahead": 2.0, "look_up": 0.2, "fov": 60.0},
 	{"name": "high", "dist": 2.8, "height": 1.7, "look_ahead": 1.2, "look_up": 0.0, "fov": 46.0},
 ]
@@ -110,13 +111,17 @@ func _update(dt: float) -> void:
 		return
 
 	var view: Dictionary = VIEWS[view_index]
+	if view.get("bow", false):
+		_update_bow(dt, view)
+		return
 	# Heading lags the hull so wave yaw does not whip the camera.
 	var dh := float(b.heading) - heading_smooth
 	dh = atan2(sin(dh), cos(dh))
 	heading_smooth += dh * (1.0 if _first else 1.0 - exp(-dt * 3.5))
 	var speed_k := clampf(float(b.speed) / float(b.hull.max_speed), 0.0, 1.2)
-	# Big seas need a higher, longer view or the boat vanishes behind every crest.
-	var hs := _hs()
+	# A little extra reach in big seas, capped: standing far back and high flattens the
+	# waves, and the sea-surface floor below keeps the lens out of the crests anyway.
+	var hs := minf(_hs(), 2.0)
 	var dist := L * float(view.dist) * (1.0 + speed_k * 0.35) + hs * 0.9
 	var height := L * float(view.height) * (1.0 + speed_k * 0.15) + 0.6 + hs * 0.75
 
@@ -134,6 +139,29 @@ func _update(dt: float) -> void:
 	var lk := Vector3(bp.x + fx * L * float(view.look_ahead), bp.y + L * float(view.look_up) + 0.3, bp.z + fz * L * float(view.look_ahead))
 	look = look.lerp(lk, 1.0 if _first else 1.0 - exp(-dt * 8.0))
 	_apply(dt, float(view.fov) + speed_k * 8.0)
+
+
+## Bow camera: the lens rides on the foredeck at water level, looking down the boat's
+## own heading, so every wave comes straight at the screen.
+func _update_bow(dt: float, view: Dictionary) -> void:
+	var b := boat
+	var L := float(b.hull.length) if "hull" in b else 6.0
+	var bp: Vector3 = b.position
+	var fwd: Vector3 = b.forward if "forward" in b else Vector3(sin(float(b.heading)), 0.0, cos(float(b.heading)))
+	var upv: Vector3 = b.up if "up" in b else Vector3.UP
+	var speed_k := clampf(float(b.speed) / float(b.hull.max_speed), 0.0, 1.2)
+	var target := bp + fwd * (L * 0.52) + upv * (L * 0.14 + 0.7)
+	# Never let a crest cross the lens: the surface is sampled where the lens is and a
+	# little ahead of it (the wave face the bow is about to climb).
+	var surf := maxf(_sea_height(target.x, target.z), _sea_height(target.x + fwd.x * 3.0, target.z + fwd.z * 3.0))
+	if target.y < surf + 0.9:
+		target.y = surf + 0.9
+	# Tracks the hull almost rigidly; the look point is damped so wave slaps nod rather than jolt.
+	pos = pos.lerp(target, 1.0 if _first else 1.0 - exp(-dt * 30.0))
+	var lk := target + fwd * (L * 3.0) - Vector3(0.0, L * 0.10, 0.0)
+	look = look.lerp(lk, 1.0 if _first else 1.0 - exp(-dt * 10.0))
+	heading_smooth = float(b.heading)
+	_apply(dt, float(view.fov) + speed_k * 6.0)
 
 
 ## Submarine: follow in 3D, stay under the surface while the sub is under.
