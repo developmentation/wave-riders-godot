@@ -12,30 +12,34 @@ layout(std430, set = 0, binding = 1) restrict writeonly buffer FFTBuffer {
 	vec2 data[];
 };
 
-layout(push_constant) restrict readonly uniform PushConstants {
-	vec2 tile_length;
-	float depth;
-	float time;
-	uint cascade_index;
+layout(std140, set = 0, binding = 2) uniform CascadeParams {
+	vec4 tile_depth_time[3];   // tile_x, tile_y, depth, time
+	vec4 foam_a[3];            // whitecap, foam_grow, foam_decay, bubble_grow
+	vec4 foam_b[3];            // bubble_decay, dt, displacement_scale, 0
 };
 
 vec2 exp_complex(in float x) { return vec2(cos(x), sin(x)); }
 vec2 mul_complex(in vec2 a, in vec2 b) { return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x); }
 vec2 conj_complex(in vec2 x) { return vec2(x.x, -x.y); }
-float dispersion_relation(in float k) { return sqrt(G * k * tanh(k * depth)); }
+float dispersion_relation(in float k, in float depth) { return sqrt(G * k * tanh(k * depth)); }
 
 #define FFT_DATA(id, layer) (data[(id.z) * map_size * map_size * NUM_SPECTRA * 2 + (layer) * map_size * map_size + (id.y) * map_size + (id.x)])
 void main() {
 	const uint map_size = gl_NumWorkGroups.x * gl_WorkGroupSize.x;
 	const ivec2 dims = imageSize(spectrum).xy;
+	const uint cascade_index = gl_WorkGroupID.z;
+	if (foam_b[cascade_index].w > 0.5) return;
 	const ivec3 id = ivec3(gl_GlobalInvocationID.xy, cascade_index);
+	const vec2 tile_length = tile_depth_time[cascade_index].xy;
+	const float depth = tile_depth_time[cascade_index].z;
+	const float time = tile_depth_time[cascade_index].w;
 
 	vec2 k_vec = vec2(id.xy - dims / 2) * 2.0 * PI / tile_length;
 	float k = length(k_vec) + 1e-6;
 	vec2 k_unit = k_vec / k;
 
 	vec4 h0 = imageLoad(spectrum, id);
-	vec2 modulation = exp_complex(dispersion_relation(k) * time);
+	vec2 modulation = exp_complex(dispersion_relation(k, depth) * time);
 	vec2 h = mul_complex(h0.xy, modulation) + mul_complex(h0.zw, conj_complex(modulation));
 	vec2 h_inv = vec2(-h.y, h.x);
 

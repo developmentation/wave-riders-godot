@@ -1,0 +1,58 @@
+[gd_scene load_steps=8 format=3 uid="uid://c0wave0riders0boattest"]
+
+[ext_resource type="Script" path="res://tests/BoatsTest.gd" id="1_test"]
+[ext_resource type="Script" path="res://ocean/StubOcean.gd" id="2_stub"]
+[ext_resource type="Script" path="res://scripts/FollowCamera.gd" id="3_cam"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.2, 0.5, 0.9, 1)
+sky_horizon_color = Color(0.75, 0.85, 0.95, 1)
+ground_bottom_color = Color(0.05, 0.2, 0.35, 1)
+ground_horizon_color = Color(0.4, 0.6, 0.75, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+tonemap_mode = 3
+
+[sub_resource type="LabelSettings" id="lbl"]
+font_size = 14
+font_color = Color(1, 1, 1, 0.9)
+outline_size = 4
+outline_color = Color(0, 0, 0, 0.7)
+
+[node name="BoatsTest" type="Node3D"]
+script = ExtResource("1_test")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 30, 0)
+light_energy = 1.4
+shadow_enabled = true
+directional_shadow_max_distance = 120.0
+
+[node name="Ocean" type="Node3D" parent="." groups=["ocean"]]
+script = ExtResource("2_stub")
+
+[node name="Boats" type="Node3D" parent="."]
+
+[node name="FollowCamera" type="Camera3D" parent="."]
+current = true
+fov = 52.0
+script = ExtResource("3_cam")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="Hud"]
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 700.0
+offset_bottom = 80.0
+label_settings = SubResource("lbl")
+text = "boats"

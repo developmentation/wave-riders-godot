@@ -15,21 +15,25 @@ layout(std430, set = 0, binding = 2) restrict readonly buffer FFTBuffer {
 	vec2 data[];
 };
 
-layout(push_constant) restrict readonly uniform PushConstants {
-	uint cascade_index;
-	float whitecap;
-	float foam_grow;
-	float foam_decay;
-	float bubble_grow;
-	float bubble_decay;
-	float dt;
-	float displacement_scale;
+layout(std140, set = 0, binding = 3) uniform CascadeParams {
+	vec4 tile_depth_time[3];   // tile_x, tile_y, depth, time
+	vec4 foam_a[3];            // whitecap, foam_grow, foam_decay, bubble_grow
+	vec4 foam_b[3];            // bubble_decay, dt, displacement_scale, 0
 };
 
 #define FFT_DATA(id, layer) (data[(id.z) * map_size * map_size * NUM_SPECTRA * 2 + NUM_SPECTRA * map_size * map_size + (layer) * map_size * map_size + (id).y * map_size + (id).x])
 void main() {
 	const uint map_size = gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+	const uint cascade_index = gl_WorkGroupID.z;
+	if (foam_b[cascade_index].w > 0.5) return;
 	const ivec3 id = ivec3(gl_GlobalInvocationID.xy, cascade_index);
+	const float whitecap = foam_a[cascade_index].x;
+	const float foam_grow = foam_a[cascade_index].y;
+	const float foam_decay = foam_a[cascade_index].z;
+	const float bubble_grow = foam_a[cascade_index].w;
+	const float bubble_decay = foam_b[cascade_index].x;
+	const float dt = foam_b[cascade_index].y;
+	const float displacement_scale = foam_b[cascade_index].z;
 	const float sign_shift = -2.0 * float((id.x & 1) ^ (id.y & 1)) + 1.0;
 
 	vec2 d0 = FFT_DATA(id, 0) * sign_shift;

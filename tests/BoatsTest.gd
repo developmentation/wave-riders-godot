@@ -4,8 +4,8 @@ extends Node3D
 ## screenshot shows the whole fleet.
 ##   node tools/godot-run.mjs --seconds 12 --tag boats --scene res://tests/BoatsTest.tscn --script "throttle:5,steer_right:3,throttle:4"
 ## User args: --boat=<id> (player, default speedboat), --color=<i>, --lineup=0|1,
-## --lineup_z=<m> (default 44), --lineup_dx=<m> (default 12), --lineup_yaw=<deg> (default 150),
-## --view=<0..2>, --waves=<Hs>. Each can also come from env BOATS_TEST_<KEY> (e.g. BOATS_TEST_BOAT=jetski).
+## --lineup_z=<m> (default 52), --lineup_dx=<m> (default 12), --lineup_yaw=<deg> (default 150),
+## --view=<0..2>, --waves=<Hs>, --spray=0|1, --ribbon=0|1, --skirt=0|1 (wake parts, for perf A/B). Each can also come from env BOATS_TEST_<KEY> (e.g. BOATS_TEST_BOAT=jetski).
 
 const BOAT_SCENE := preload("res://boats/Boat.tscn")
 
@@ -34,6 +34,9 @@ func _ready() -> void:
 	_label = $Hud/Label
 	var hs := float(_arg("waves", "0.8"))
 	ocean.set_weather({"swell_hs": hs})
+	Wake.spray_enabled = _arg("spray", "1") != "0"
+	Wake.ribbon_enabled = _arg("ribbon", "1") != "0"
+	Wake.skirt_enabled = _arg("skirt", "1") != "0"
 	var id := _arg("boat", "speedboat")
 	if not Boats.CATALOG.has(id) or id == "sub":
 		id = "speedboat"
@@ -47,7 +50,7 @@ func _ready() -> void:
 
 	if _arg("lineup", "1") != "0":
 		var yaw := deg_to_rad(float(_arg("lineup_yaw", "150")))
-		var z0 := float(_arg("lineup_z", "44"))
+		var z0 := float(_arg("lineup_z", "52"))
 		var dx := float(_arg("lineup_dx", "12"))
 		var ids: Array = []
 		for k in Hulls.IDS:

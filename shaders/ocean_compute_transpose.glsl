@@ -11,8 +11,10 @@ layout(std430, set = 0, binding = 0) restrict readonly buffer ButterflyBuffer {
 layout(std430, set = 0, binding = 1) restrict buffer FFTBuffer {
 	vec2 data[];
 };
-layout(push_constant) restrict readonly uniform PushConstants {
-	uint cascade_index;
+layout(std140, set = 0, binding = 2) uniform CascadeParams {
+	vec4 tile_depth_time[3];
+	vec4 foam_a[3];
+	vec4 foam_b[3];            // .w > 0.5 = skip this cascade this frame
 };
 
 shared vec2 tile[TILE_SIZE][TILE_SIZE + 1];
@@ -23,7 +25,9 @@ void main() {
 	const uint map_size = gl_NumWorkGroups.x * gl_WorkGroupSize.x;
 	const uvec2 id_block = gl_WorkGroupID.xy;
 	const uvec2 id_local = gl_LocalInvocationID.xy;
-	const uint spectrum = gl_GlobalInvocationID.z;
+	const uint cascade_index = gl_WorkGroupID.z / NUM_SPECTRA;
+	const uint spectrum = gl_WorkGroupID.z % NUM_SPECTRA;
+	if (foam_b[cascade_index].w > 0.5) return;
 	uvec3 id = uvec3(gl_GlobalInvocationID.xy, cascade_index);
 	tile[id_local.y][id_local.x] = DATA_IN(id, spectrum);
 	barrier();

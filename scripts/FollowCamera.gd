@@ -28,6 +28,10 @@ var mode := "boat"
 var orbit: Dictionary = {}
 var shake := 0.0
 
+## Step itself from _process. Calling update(dt) from a game loop (Main.gd, after the
+## boats have moved) turns this off so the camera is not stepped twice a frame.
+var auto_update := true
+
 var pos := Vector3.ZERO
 var look := Vector3(0, 0, 1)
 var heading_smooth := 0.0
@@ -71,6 +75,17 @@ func _hs() -> float:
 
 
 func _process(dt: float) -> void:
+	if auto_update:
+		_update(dt)
+
+
+## Explicit step (web order: boats, collisions, race, then camera).
+func update(dt: float) -> void:
+	auto_update = false
+	_update(dt)
+
+
+func _update(dt: float) -> void:
 	if boat == null or not enabled:
 		return
 	var b := boat

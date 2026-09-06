@@ -142,33 +142,37 @@ void fragment() {
 	vec2 wd = normalize(wind_dir + vec2(1e-5, 0.0));
 	vec2 qs = vec2(dot(q, wd), dot(q, vec2(-wd.y, wd.x)));
 	float t = time;
-	vec4 fx1 = texture(foam_tex, qs * vec2(0.145 * 0.22, 0.145) - vec2(t * 0.011, t * 0.008));
 	vec4 fx2 = texture(foam_tex, q * 0.62 + vec2(-t * 0.03, t * 0.021));
-	vec4 fx3 = texture(foam_tex, qs * vec2(0.085, 0.50) - vec2(t * 0.016, t * 0.006));
 	float covN = clamp(whitecap_cov / 0.16, 0.0, 1.0);
+	float cap = 0.0, streak = 0.0, lace = 0.0, aer = 0.0, fold = 0.0, foam = 0.0, foam_thin = 0.0;
+	vec4 fx1 = fx2;
+	if (whitecap_cov > 0.0012) {
+	fx1 = texture(foam_tex, qs * vec2(0.145 * 0.22, 0.145) - vec2(t * 0.011, t * 0.008));
+	vec4 fx3 = texture(foam_tex, qs * vec2(0.085, 0.50) - vec2(t * 0.016, t * 0.006));
 	float fdn = dot(grad, wd) / (length(grad) + 0.06);
 	float cap_face = clamp(0.62 - 0.55 * fdn, 0.0, 1.0);
 	float conv = v_conv;
 	float spill_knee = mix(1.2, 0.55, smoothstep(0.0, 0.9, covN));
 	float spill = smoothstep(spill_knee, spill_knee + 0.5, conv) * smoothstep(0.003, 0.02, covN);
-	float fold = clamp((whitecap - (1.0 - conv)) * 3.0, 0.0, 1.0);
+	fold = clamp((whitecap - (1.0 - conv)) * 3.0, 0.0, 1.0);
 	float foldS = smoothstep(0.12, 0.60, fold);
 	float cap_src = (foldS * 1.3 + spill * 0.85 + foam_acc * 12.0 * foam_strength) * cap_face;
 	float cap_tex = fx1.r * 0.55 + fx2.r * 0.45;
 	float cap_carve = cap_src * (0.40 + cap_tex * 1.15);
 	float cap_on = mix(0.60, 0.34, covN);
-	float cap = smoothstep(cap_on, cap_on + 0.20, cap_carve);
+	cap = smoothstep(cap_on, cap_on + 0.20, cap_carve);
 	float cap_core = smoothstep(cap_on + 0.28, cap_on + 0.62, cap_carve);
 	float raft = smoothstep(0.02, 0.10, bubbles);
 	float streak_src = (foam_acc * 10.0 + raft * 0.6) * foam_strength * smoothstep(0.02, 0.30, covN);
 	float streak_pat = smoothstep(0.50, 0.80, fx3.b * 0.6 + fx3.a * 0.4);
-	float streak = smoothstep(0.24, 0.55, streak_src * 1.4) * streak_pat * (0.55 + 0.45 * fx3.r);
+	streak = smoothstep(0.24, 0.55, streak_src * 1.4) * streak_pat * (0.55 + 0.45 * fx3.r);
 	float raft_mask = raft * foam_strength * smoothstep(0.01, 0.20, covN);
 	float lace_pat = smoothstep(0.50, 0.72, fx2.r * (0.7 + 0.5 * fx2.g) * (0.8 + 0.4 * fx3.r));
-	float lace = lace_pat * raft_mask;
-	float aer = clamp(foam_acc * 10.0 + raft * 0.8 + foldS * 0.5 + spill * 0.3, 0.0, 1.0) * smoothstep(0.01, 0.20, covN);
-	float foam = max(cap, streak * 0.8);
-	float foam_thin = max(streak, lace);
+	lace = lace_pat * raft_mask;
+	aer = clamp(foam_acc * 10.0 + raft * 0.8 + foldS * 0.5 + spill * 0.3, 0.0, 1.0) * smoothstep(0.01, 0.20, covN);
+	foam = max(cap, streak * 0.8);
+	foam_thin = max(streak, lace);
+	}
 
 	// ------------------------------------------------------------- shore
 	float depth_raw = texture(depth_tex, SCREEN_UV).x;

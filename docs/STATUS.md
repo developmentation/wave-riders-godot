@@ -491,3 +491,138 @@ and FollowCamera on the stub ocean and the flat 8-gate loop.
 - Boat-vs-boat separation is applied as a one-frame velocity correction because BoatPhysics owns its transform; the impulse
   exchange and yaw kicks are the web's.
 - Gate arches follow the sea height with the web's 6/s lerp, sampled every third frame except the next gate.
+
+## Boats: physics, catalog visuals, wake, controls, chase camera (`boats/Hulls.gd`, `boats/BoatPhysics.gd`, `boats/Boats.gd`, `boats/Boat.tscn`, `boats/Wake.gd`, `scripts/Controls.gd`, `scripts/FollowCamera.gd`, `tests/BoatsTest.tscn`, `tests/PhysicsSim.gd`)
+
+Faithful port of the web `src/game/BoatPhysics.js`, `Boats.js`, `Wake.js`, `Controls.js`, `FollowCamera.js`:
+same HULLS numbers (jetski, speedboat, sailboat, pontoon, fishing, tug, airboat, towboat, rowboat, `SPRING_FACTOR 1.8`),
+buoyancy points with relative-velocity damping (`surface_velocity_y`), outboard thrust with the `steer_in = -steer`
+screen-right convention, planing lift, keel-level lateral drag (banks into turns), metacentric upright spring,
+yaw cap per hull, land as a horizontal wall, beached timer + `rescue()`. `tests/PhysicsSim.gd` reproduces the web
+`tools/physics-sim.mjs` output number for number (flat water, wind = null, 5 s full throttle then full right lock):
+
+| hull | top km/h (web) | lock yaw rad/s (web) | max bank |
+| --- | --- | --- | --- |
+| jetski | 67.2 (67) | 1.50 (1.54) | 24.2 deg |
+| speedboat | 80.3 (80) | 1.02 (1.03) | 11.9 |
+| sailboat | 37.6 (38) | 0.23 (0.23) | 0.4 |
+| pontoon | 42.3 (42) | 0.42 (0.42) | 0.2 |
+| fishing | 34.9 (35) | 0.54 (0.54) | 0.9 |
+| tug | 28.9 (29) | 0.68 (0.69) | 0.4 |
+| airboat | 71.6 (71) | 1.40 (1.40) | 1.3 |
+| towboat | 83.4 (83) | 0.86 (0.86) | 6.8 |
+| rowboat | 11.9 (12) | 1.10 (1.10) | 1.5 |
+
+Run: `godot --headless --path . -s tests/PhysicsSim.gd [-- jetski,tug]` (exit 1 on failure). No hull capsizes (bank <= 25 deg).
+The task brief's "~79 / ~89 / ~43 / ~50 km/h" are the boosted game tops (`max_speed * 3.6`, boost x1.35 on thrust);
+the unboosted flat-water tops above are what the web sim prints, so those are the checked targets. The pontoon (0.42)
+and the sailboat (0.23) turn slower than 0.5 rad/s at lock in the web too; the check window is 0.2..1.6 for those two.
+
+### API
+
+```gdscript
+# boats/Hulls.gd (class_name Hulls)
+const SPRING_FACTOR := 1.8 ; const HULLS := {...} ; const IDS := [...9 ids...]
+static func rest_height(hull) -> float        # body-origin height above still water once settled (negative = below)
+
+# boats/BoatPhysics.gd (class_name BoatPhysics, extends Node3D) — the node transform IS the body pose
+@export var boat_id := "speedboat" ; @export var color_index := 0
+@export var auto_visual := true      # build Boats.build_visual(boat_id, color_index) as child "Visual" on _ready
+@export var simulate := true         # integrate in _physics_process (120 Hz project tick -> one 1/120 s substep); off = call advance(dt)
+var hull: Dictionary ; var ocean: Node ; var ground_fn: Callable ; var wind := {"angle": 0.0, "speed": 5.0}  # {} = no sail model
+var throttle, steer, boost, dive: float ; var is_sub := false
+var velocity, angular, forward, right, up: Vector3 ; var heading, pitch, depth, speed, speed_kmh, submersion: float
+var airborne: bool ; var slap_impulse, wake_strength, beached_time, sail_efficiency: float ; var contacts: Array[float]
+func configure(id, color, ocean_node, ground := Callable())   # hull from Boats.CATALOG[id].hull
+func set_hull(h) ; func set_pose(x, y, z, heading) ; func reset() ; func rescue() ; func advance(dt)
+func sea_sample(x, z) -> Vector3 ; sea_height(x, z) ; sea_dhdt(x, z) ; sea_hs() ; ground_at(x, z)
+func get_harness_state() -> Dictionary    # {boat, pos, speed_kmh, heading, submersion, bank_deg, throttle, steer}
+# ocean == null -> flat calm water (PhysicsSim). If ocean is null on _ready it takes the first node in group "ocean".
+# _process(dt) calls Visual.update(dt, self) when the child has it.
+
+# boats/Boats.gd (class_name Boats)
+const PALETTE := {...Color...} ; const CATALOG := {jetski, speedboat, sailboat, pontoon, fishing, tug, airboat, towboat, rowboat, sub}
+#   catalog entries: id label hull kind file model_length yaw lift waterline colors[] (palette keys) variants[] description icon stats{}
+static func build_visual(id, color_index := 0) -> Node3D    # Boats.BoatVisual: update(dt, body), .triangles, .parts, .drivers
+static func material(color, roughness, metal) -> StandardMaterial3D   # shared cache; static helpers box/cyl/sphere/torus/hull_slab/flag
+static func keel_y(spec) ; static func rest_height(hull)
+# "sub" is a placeholder capsule so the shared spawn path never fails; boats/Submarine.tscn owns the real submarine.
+
+# boats/Boat.tscn:  Boat (BoatPhysics) / Wake (Wake, top_level)      -> instantiate, configure(), add_child, set_pose()
+
+# boats/Wake.gd (class_name Wake, extends Node3D; top_level)
+var body: Node (default: parent BoatPhysics) ; var hs: float ; var lod_distance := 45.0
+static var spray_enabled / ribbon_enabled / skirt_enabled := true   # quality presets can switch parts off
+# 3 draw calls per boat: ribbon (ImmediateMesh, 48 rows x 3 verts, Kelvin 19.47 deg widening, 4 s life, stops while airborne),
+# hull skirt (ImmediateMesh, 24 x 3 ring superellipse outline snapped to the sea, lift 0.10 + 0.09*Hs),
+# spray (MultiMesh pool of 360 billboard quads: bow sheets, chine sheets, slap bursts, rooster tail > 40 km/h on planing hulls;
+# each sprite is written once at spawn and integrated analytically in the vertex shader, 40 px cap at 720p like the web).
+
+# scripts/Controls.gd (autoload "Controls")
+var throttle (-0.5..1), steer (-1..1, +right), brake, boost: bool, dive (-1..1, +up), active, last_device
+var actions: Dictionary   # one-frame: reset camera pause horn confirm mute  -> Controls.has("reset")
+var virtual: Dictionary   # HUD touch writes {throttle, steer, brake, boost, dive, active}; set_virtual(v), set_tilt(v), clear_tilt(), trigger(a)
+# same smoothing as the web (steer 10/6 Hz, throttle 4, dive 6); process_priority -100 so it runs before consumers.
+
+# scripts/FollowCamera.gd (class_name FollowCamera, extends Camera3D)
+const VIEWS (chase/close/high) ; var boat, ocean ; var view_index ; var mode := "boat" | "sub" ; var orbit := {} ; var enabled
+func follow(b) ; next_view() ; view_name() ; impulse(a) ; update(dt)   # update(dt) from a game loop turns auto_update off
+# speed + Hs scaling, look-ahead, lens never below surface + 1.4 + 0.45*Hs (sub mode: stays 2 m under while deeper than 2.5 m),
+# landing shake, orbit mode {angle, dist, height, speed, fov} for title/garage.
+```
+
+### Integration steps for Main.gd (already matching what scripts/Main.gd does)
+
+1. `var b := load("res://boats/Boat.tscn").instantiate(); b.configure(id, color, ocean, Callable(world, "height_at")); b.simulate = false; boats_node.add_child(b); b.set_pose(x, ocean.height_at(x, z) + 0.3, z, heading)`.
+   With `simulate = false` step every body yourself in web order: `b.wind = wind; b.advance(dt)` for all boats, collisions,
+   race, then `camera.update(dt)`. Leave `simulate` on to let the body run at the 120 Hz physics tick by itself.
+2. Feed the player each frame: `b.throttle = Controls.throttle; b.steer = Controls.steer; b.boost = 1.0 if Controls.boost else 0.0`;
+   `if Controls.has("reset"): b.reset()`, `if Controls.has("camera"): camera.next_view()`.
+3. Camera: `camera.ocean = ocean; camera.follow(player)`; on `slap_impulse` rising by > 0.2: `camera.impulse(si * 0.6)` (+ audio splash).
+   Sub worlds: `camera.mode = "sub"`. Title/garage: `camera.orbit = {"angle": 0.0, "dist": 1.6, "height": 0.6, "speed": 0.25, "fov": 40.0}`.
+4. Beached: `if b.beached_time > 1.5: b.rescue()`. Wake: Boat.tscn already carries a `Wake` child (top_level); for a bare
+   BoatPhysics add `Wake.new()` with `body = b`. Wake needs the body's `ocean` for `height_at`/`significant_wave_height`.
+5. Garage cards: `Boats.CATALOG.values()` (label, description, icon, stats, colors as PALETTE keys -> `Boats.PALETTE[key]`).
+6. Ocean contract used: `sample(x, z) -> Vector3(h, dh/dx, dh/dz)`, `height_at`, `surface_velocity_y` (clamped +-12 m/s),
+   `significant_wave_height`. Per boat per frame: ~6 x 2 samples + 6 x 2 dh/dt (120 Hz) for physics, ~150 `height_at` for the
+   ribbon and 72 for the skirt (half rate beyond 45 m from the camera). The CPU sampler cost matters: with the GDScript stub
+   the 8 parked fleet boats cost ~3 ms/frame, mostly `height_at` calls.
+
+### Test scene and screenshots
+
+`node tools/godot-run.mjs --seconds 12 --tag boats --scene res://tests/BoatsTest.tscn --script "throttle:5,steer_right:3,throttle:4" --every 2`
+Options via user args `--boat= --color= --view=0..2 --waves=<Hs> --lineup=0|1 --lineup_z= --lineup_dx= --lineup_yaw= --spray= --ribbon= --skirt=`
+or env `BOATS_TEST_<KEY>` (godot-run.mjs does not forward user args): e.g. `BOATS_TEST_BOAT=jetski BOATS_TEST_VIEW=1`.
+Player body is in group `harness_state`. Every other catalog boat is parked 12 m apart at z = 52, turned 150 deg.
+
+- `tools/shots/boats/e002.png` whole fleet in one frame (rowboat, towboat, airboat, tug, fishing, pontoon, sailboat, jetski) behind the player's speedboat with skirt + Kelvin-arm wake + bow spray
+- `tools/shots/boats/t008.png` `steer_right`: bow swings to the viewer's right, heading 0.01 -> -0.60 -> -1.65 -> -2.80 rad, bank -12 deg into the turn, spray thrown outboard
+- `tools/shots/boats/final.png` passing between the sailboat and the pontoon at 80 km/h
+- `tools/shots/boats-jetski/e006.png` procedural jet ski, close view, chine/bow sheets both sides
+- `tools/shots/boats-fishing/e006.png` high view in Hs 1.2: fishing boat (rods, floats, kid at the outside helm), tug with flying bridge + smoke, pontoon
+- `tools/shots/boats-waves/e006.png` jet ski in Hs 2.6, camera raised with Hs, ribbon broken where the hull left the water
+- Web references compared: `C:\dev\games\boats\tools\shots\skirt-t006.png`, `fgarage-t002.png`, `lineup-final-t004.png`.
+
+Kenney GLBs: Godot imports glTF without rotating, so +Z stays the bow (same as three.js); `yaw` 0 everywhere. Models sit on
+y = 0 and are scaled by `hull.length / variant.length`, keel at `keel_y(spec)` from `rest_height` + catalog `waterline`.
+
+### Performance (1280x720, this machine's GPU, stub ocean = 1M-triangle plane, 9 boats)
+
+- BoatsTest chase view: median 150-165 fps (min ~105 during load); close view behind the jet ski 160 (min 107, big ribbon fill).
+- A/B (jet ski close): spray on 147 / off 155; ribbon + skirt off 273; lineup off 266 -> the 8 parked boats' physics + skirts
+  cost ~3 ms/frame with the GDScript stub sampler (see step 6). Spray itself is ~0.3 ms.
+- Draw calls: ~40 for 9 boats + wakes on open water (fleet visuals are one ArrayMesh per material + separate animated parts).
+
+### Known issues / notes
+
+- Spray uses a MultiMesh pool (CPU spawn, GPU analytic motion) instead of GPUParticles3D: `emit_particle` semantics could not be
+  verified blind (auto-spawn vs manual restart flags) and the pool gives exact web behaviour (bursts, per-particle lifetimes) for one
+  draw call. Godot's Vulkan projection has a negative `PROJECTION_MATRIX[1][1]`; the pixel cap uses `abs()`.
+- Foam uses shaded materials with `cull_disabled`: Godot flips back-face normals, so strips are wound clockwise from above.
+  `shadows_disabled` on foam (10 cm above the sea) avoids shadow-map acne from the ocean mesh.
+- Rounded boxes of the web are plain boxes here; flag flutter is a vertex shader with an `instance uniform wave`.
+- Kid drivers, pennants, wheel/nozzle/oar/fan/sail/tiller animations, smoke stacks (MultiMesh) are ported; the sailboat heel and
+  sheet follow `body.wind` ({} disables the point-of-sail model, as in the web sim).
+- Airborne ribbon stop is ported (rows only laid while `submersion > 0`, live head detached in the air); verified by code and by the
+  Hs 2.6 run (submersion dips to 0.2 between harness samples), not by a dedicated jump test.
+- `Boats.build_visual("sub")` is a placeholder; Main uses `boats/Submarine.tscn` for the real sub.

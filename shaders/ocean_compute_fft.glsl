@@ -14,8 +14,10 @@ layout(std430, set = 0, binding = 0) restrict readonly buffer ButterflyBuffer {
 layout(std430, set = 0, binding = 1) restrict buffer FFTBuffer {
 	vec2 data[];
 };
-layout(push_constant) restrict readonly uniform PushConstants {
-	uint cascade_index;
+layout(std140, set = 0, binding = 2) uniform CascadeParams {
+	vec4 tile_depth_time[3];
+	vec4 foam_a[3];
+	vec4 foam_b[3];            // .w > 0.5 = skip this cascade this frame
 };
 
 shared vec2 row_shared[2 * MAP_SIZE];
@@ -29,9 +31,12 @@ vec2 mul_complex(in vec2 a, in vec2 b) { return vec2(a.x * b.x - a.y * b.y, a.x 
 void main() {
 	const uint map_size = uint(MAP_SIZE);
 	const uint num_stages = findMSB(map_size);
+	// dispatch z = cascade * NUM_SPECTRA + spectrum, so all cascades run in one dispatch
+	const uint cascade_index = gl_WorkGroupID.z / NUM_SPECTRA;
+	const uint spectrum = gl_WorkGroupID.z % NUM_SPECTRA;
+	if (foam_b[cascade_index].w > 0.5) return;
 	const uvec3 id = uvec3(gl_GlobalInvocationID.xy, cascade_index);
 	const uint col = id.x;
-	const uint spectrum = gl_GlobalInvocationID.z;
 
 	ROW_SHARED(col, 0) = DATA_IN(id, spectrum);
 	for (uint stage = 0U; stage < num_stages; ++stage) {

@@ -49,6 +49,7 @@ func _ready() -> void:
 				ab[flag] = true
 	add_to_group("harness_state")
 	ocean.set_quality(quality)
+	Quality.apply_viewport(get_viewport(), quality)
 	ocean.debug_flags = ab
 	var sky: Node = ocean.get_node_or_null("SkyWeather")
 	if ab.has("nowater"):
