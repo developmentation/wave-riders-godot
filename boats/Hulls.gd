@@ -78,6 +78,14 @@ const HULLS := {
 		"buoyancy_points": [[0.0, -0.163, 1.35], [-0.55, -0.163, 0.3], [0.55, -0.163, 0.3], [-0.5, -0.163, -1.0], [0.5, -0.163, -1.0], [0.0, -0.163, -1.4]],
 		"label": "Rowboat",
 	},
+	# Kenney ship-ocean-liner-small: a big, slow, very steady passenger ferry (~32 km/h).
+	"ferry": {
+		"length": 24.0, "width": 7.5, "mass": 45000.0, "draft": 1.6,
+		"thrust": 160000.0, "max_speed": 9.0, "steer_torque": 0.9, "rudder_lift": 6.0, "max_yaw": 0.3,
+		"drag_long": 0.08, "drag_lat": 3.0, "planing": 0.0, "roll": 0.2, "bounce": 1.8,
+		"buoyancy_points": [[-3.0, -1.185, 9.0], [3.0, -1.185, 9.0], [-3.4, -1.185, 3.0], [3.4, -1.185, 3.0], [-3.4, -1.185, -3.0], [3.4, -1.185, -3.0], [-3.0, -1.185, -9.0], [3.0, -1.185, -9.0]],
+		"label": "Ferry",
+	},
 }
 
 ## Order used by the garage and the fleet lineup.

@@ -32,12 +32,14 @@ func triangles() -> int:
 
 
 func tri(a: Vector3, b: Vector3, c: Vector3, color: Color) -> void:
+	# Godot's front face is clockwise (the web convention was counter-clockwise), so the
+	# geometric normal is kept but the vertices are emitted a, c, b.
 	var n := (b - a).cross(c - a)
 	var l := n.length()
 	n = n / l if l > 0.0 else Vector3.UP
 	pos.append(a)
-	pos.append(b)
 	pos.append(c)
+	pos.append(b)
 	nrm.append(n)
 	nrm.append(n)
 	nrm.append(n)

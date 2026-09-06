@@ -657,15 +657,18 @@ func _rebuild_mesh(clipmap: String) -> void:
 ## triangle fans, so the mesh is watertight (no T-junction cracks) out to the horizon.
 static func _build_clipmap(c0: float, n: int, rings: int) -> ArrayMesh:
 	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()      # x = cell size (m) of the level that created the vertex
 	var idx := PackedInt32Array()
 	var lookup := {}
 	var half := n / 2
+	var cur_cell := [c0]
 	var vid := func(ix: int, iz: int) -> int:
 		var key := Vector2i(ix, iz)
 		if lookup.has(key):
 			return lookup[key]
 		var i := verts.size()
 		verts.append(Vector3(float(ix) * c0, 0.0, float(iz) * c0))
+		uvs.append(Vector2(cur_cell[0], 0.0))
 		lookup[key] = i
 		return i
 	var tri := func(a: int, b: int, c: int) -> void:
@@ -687,6 +690,7 @@ static func _build_clipmap(c0: float, n: int, rings: int) -> ArrayMesh:
 	var q := n / 4
 	for level in range(1, rings + 1):
 		var s := 1 << level
+		cur_cell[0] = c0 * float(s)
 		for iz in range(-half, half):
 			for ix in range(-half, half):
 				if ix >= -q and ix < q and iz >= -q and iz < q:
@@ -741,6 +745,7 @@ static func _build_clipmap(c0: float, n: int, rings: int) -> ArrayMesh:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = idx
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

@@ -75,9 +75,14 @@ void vertex() {
 	float dist = length(p - cam);
 	vec3 d = vec3(0.0);
 	float conv = 0.0;
+	// A cascade must not be sampled by cells coarser than ~1/8 of its tile: the aliased
+	// facets tilt toward the camera and reflect the dark ground as black gashes.
+	float cell = max(UV.x, 0.01);
 	for (int i = 0; i < num_cascades; i++) {
 		vec4 sc = map_scales[i];
+		float tile = 1.0 / max(sc.x, 1e-6);
 		float f = 1.0 - smoothstep(disp_fade[i], disp_fade[i] * 2.5, dist);
+		f *= 1.0 - smoothstep(tile / 16.0, tile / 7.0, cell);
 		vec4 s = texture(displacements, vec3(p * sc.xy, float(i)));
 		d += vec3(s.x * chop, s.y, s.z * chop) * sc.z * f;
 		conv += -s.w * f;

@@ -54,6 +54,7 @@ var _ctrl := {"steer": 0.0, "throttle": 0.0, "dive": 0.0, "actions": {}, "enter"
 var _has := {}
 var _transition_portals: Node
 var _stub_set: Dictionary = {}
+var _quality_arg := ""
 
 
 # ------------------------------------------------------------------ boot
@@ -63,6 +64,13 @@ func _ready() -> void:
 	_parse_args()
 	for c in stubs.split(",", false):
 		_stub_set[c.strip_edges()] = true
+	# Quality: the discrete GPU is the prime target; integrated Intel chips get the 60 fps medium preset.
+	if _quality_arg != "":
+		Quality.current = _quality_arg
+	else:
+		var adapter := RenderingServer.get_video_adapter_name().to_lower()
+		Quality.current = "medium" if ("intel" in adapter or "uhd" in adapter or "iris" in adapter) else "high"
+	print("[main] gpu=", RenderingServer.get_video_adapter_name(), " quality=", Quality.current)
 	var prefs := SaveData.load_prefs()
 	stars = SaveData.load_stars()
 	if start_boat != "":
@@ -120,6 +128,7 @@ func _ready() -> void:
 		camera.ocean = ocean
 	add_child(camera)
 	camera.current = true
+	camera.far = 30000.0   # the cloud dome and far sea reach 14+ km; the default 4 km clipped a band of sky
 
 	# Autoloads
 	audio = get_node_or_null("/root/GameAudio")
@@ -203,6 +212,8 @@ func _parse_args() -> void:
 				autopilot = val != "0"
 			"--laps":
 				laps_override = int(val)
+			"--quality":
+				_quality_arg = val
 	# Under the CLI harness with no --skip, go straight to the hub (the web smoke's ?skip=title).
 	if start_world == "" and not OS.get_cmdline_user_args().is_empty():
 		start_world = "title"

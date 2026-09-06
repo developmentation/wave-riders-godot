@@ -178,12 +178,13 @@ func apply_quality(p: Dictionary) -> void:
 	preset = p
 	var shadows := int(p.shadows)
 	sun.shadow_enabled = shadows > 0
+	# Islands sit 200-600 m off; without shadows out there the land reads flat and washed out.
 	if shadows >= 4:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-		sun.directional_shadow_max_distance = 300.0
+		sun.directional_shadow_max_distance = 700.0
 	elif shadows >= 2:
-		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-		sun.directional_shadow_max_distance = 200.0
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+		sun.directional_shadow_max_distance = 450.0
 	else:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 		sun.directional_shadow_max_distance = 120.0
@@ -262,7 +263,7 @@ func apply_weather(w: Dictionary, hs: float, immediate := false) -> void:
 	environment.volumetric_fog_enabled = bool(preset.volumetric) and (fog > 0.25 or rain_amt > 0.3)
 	environment.volumetric_fog_density = 0.004 + 0.02 * fog
 	environment.volumetric_fog_albedo = horizon.lightened(0.2)
-	environment.ambient_light_energy = lerpf(1.0, 1.4, storminess)
+	environment.ambient_light_energy = lerpf(0.75, 1.1, storminess)
 
 	# rain
 	rain.emitting = rain_amt > 0.04

@@ -11,7 +11,7 @@ extends Node3D
 
 const RING_RADIUS := 6.0
 const TUBE := 0.5
-const RING_Y := 4.6                      # torus centre above the (bobbing) sea
+const RING_Y := 6.3                      # torus centre above the (bobbing) sea
 const ICON_Y := RING_Y + RING_RADIUS + TUBE + 3.4
 const COLUMN_H := 26.0
 const POOL_R := RING_RADIUS * 1.35

@@ -61,6 +61,8 @@ class Soup:
 static func material() -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.albedo_color = Color(0.82, 0.82, 0.8)   # web palette read a touch darker under its lighting
 	mat.roughness = 0.9
 	mat.metallic = 0.0
 	return mat

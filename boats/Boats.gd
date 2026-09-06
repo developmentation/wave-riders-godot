@@ -118,6 +118,14 @@ const CATALOG := {
 		"stats": {"speed": 0.15, "turning": 0.9, "steady": 0.5},
 	},
 	# Placeholder so build_visual("sub") never fails; boats/Submarine.tscn owns the real one.
+	"ferry": {
+		"id": "ferry", "label": "Ferry", "hull": "ferry", "kind": "glb",
+		"file": "ship-ocean-liner-small.glb", "model_length": 15.2, "yaw": 0.0, "lift": 0.0, "waterline": 1.3,
+		"variants": [{"file": "ship-ocean-liner-small.glb", "length": 15.2}, {"file": "ship-small.glb", "length": 10.6}],
+		"colors": ["white", "blue", "red"],
+		"description": "Big, slow and mighty — carries everyone!", "icon": "⛴️",
+		"stats": {"speed": 0.3, "turning": 0.2, "steady": 1.0},
+	},
 	"sub": {
 		"id": "sub", "label": "Submarine", "hull": "speedboat", "kind": "procedural", "file": "",
 		"model_length": 6.0, "yaw": 0.0, "lift": 0.0, "waterline": 0.0,
