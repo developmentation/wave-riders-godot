@@ -30,6 +30,7 @@ var _busy := false
 var stats := false
 var _stats: Dictionary = {}
 var ab: Dictionary = {}
+var rogue_test := false
 
 
 func _ready() -> void:
@@ -44,6 +45,8 @@ func _ready() -> void:
 			ocean.debug_view = int(a.get_slice("=", 1))
 		elif a == "--stats":
 			stats = true
+		elif a == "--rogue":
+			rogue_test = true
 		elif a.begins_with("--ab="):
 			for flag in a.get_slice("=", 1).split("+"):
 				ab[flag] = true
@@ -126,9 +129,10 @@ func _process(dt: float) -> void:
 		m.global_transform = Transform3D(basis, Vector3(x, smp.x + 0.05, z))
 		sum += smp.x
 	marker_mean = sum / 25.0
-	if wid == "tempest" and not rogue_spawned and t > 5.0:
+	if (wid == "tempest" or rogue_test) and not rogue_spawned and t > (2.0 if rogue_test else 5.0):
 		rogue_spawned = true
-		ocean.spawn_rogue(Vector2(0.0, 1.0), 7.0, 130.0, 220.0)
+		# travels toward +z (toward the camera) and reaches the marker grid ~6 s later
+		ocean.spawn_rogue(Vector2(0.0, 1.0), 7.0 if not rogue_test else 6.0, 130.0 if not rogue_test else 110.0, 220.0)
 	if int(t * 2.0) != int((t - dt) * 2.0):
 		_estimate_wave_velocity()
 		if stats and t > 1.0:

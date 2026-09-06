@@ -36,6 +36,7 @@ var _base_sky_energy := 1.0
 var _time := 0.0
 var _rng := RandomNumberGenerator.new()
 var _has_noise := false
+var _night_tex: ImageTexture
 
 
 func _ready() -> void:
@@ -56,7 +57,7 @@ func _ready() -> void:
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.tonemap_white = 8.0
 	sky_material.rayleigh_color = Color(0.20, 0.38, 0.66)
-	sky_material.night_sky = _make_night_sky()
+	_night_tex = _make_night_sky()
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 	environment.fog_density = 0.0005
@@ -98,6 +99,7 @@ func _ready() -> void:
 	flash.light_color = Color(0.85, 0.9, 1.0)
 	flash.shadow_enabled = false
 	flash.rotation_degrees = Vector3(-70.0, 30.0, 0.0)
+	flash.visible = false
 	add_child(flash)
 
 	# --- rain
@@ -185,6 +187,15 @@ func apply_quality(p: Dictionary) -> void:
 	else:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 		sun.directional_shadow_max_distance = 120.0
+	if shadows >= 4:
+		RenderingServer.directional_shadow_atlas_set_size(4096, true)
+		RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_HIGH)
+	elif shadows >= 2:
+		RenderingServer.directional_shadow_atlas_set_size(4096, true)
+		RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM)
+	else:
+		RenderingServer.directional_shadow_atlas_set_size(2048 if shadows > 0 else 1024, true)
+		RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
 	environment.ssr_enabled = bool(p.ssr)
 	environment.ssr_max_steps = 48
 	environment.sdfgi_enabled = bool(p.sdfgi)
@@ -192,6 +203,8 @@ func apply_quality(p: Dictionary) -> void:
 	clouds.visible = bool(p.clouds) and _has_noise
 	if rain.amount != int(p.rain):
 		rain.amount = int(p.rain)
+	sky.process_mode = Sky.PROCESS_MODE_REALTIME if bool(p.get("sky_realtime", true)) else Sky.PROCESS_MODE_INCREMENTAL
+	sky.radiance_size = Sky.RADIANCE_SIZE_256 if bool(p.get("sky_realtime", true)) else Sky.RADIANCE_SIZE_128
 
 
 ## Applies a (blended) weather dictionary. Called by Ocean every frame.
@@ -213,21 +226,28 @@ func apply_weather(w: Dictionary, hs: float, immediate := false) -> void:
 	sun_color = warm.lerp(Color(0.75, 0.78, 0.85), storminess * 0.8)
 	sun.light_color = sun_color
 	var sun_up := clampf(sin(elev), 0.0, 1.0)
-	sun.light_energy = pow(sun_up, 0.55) * 3.0 * (1.0 - 0.5 * cover * cover) * (1.0 - 0.4 * fog)
+	sun.light_energy = pow(sun_up, 0.4) * 3.0 * (1.0 - 0.5 * cover * cover) * (1.0 - 0.4 * fog)
 	fill.light_energy = lerpf(0.05, 0.6, 1.0 - sun_up) * (0.3 + 0.7 * storminess) + 0.45 * clampf(-sin(elev) * 8.0, 0.0, 1.0)
+	fill.visible = fill.light_energy > 0.08   # every directional light costs a full light() pass on the water
+	sun.visible = sun.light_energy > 0.01
 
 	# sky
 	# storms: grey out the physical sky (no sunset glow), which also greys the ambient and the reflections
 	sky_material.turbidity = 1.2 + (12.0 * fog + 5.0 * cover * cover) * (1.0 - 0.8 * storminess)
 	sky_material.mie_coefficient = 0.003 + (0.02 * fog + 0.008 * cover) * (1.0 - 0.8 * storminess)
 	sky_material.mie_eccentricity = 0.8 - 0.5 * storminess
-	sky_material.mie_color = Color(0.69, 0.73, 0.81).lerp(Color(0.55, 0.57, 0.62), storminess)
-	sky_material.rayleigh_coefficient = 3.6 + 1.0 * storminess
-	sky_material.rayleigh_color = Color(0.20, 0.38, 0.66).lerp(Color(0.42, 0.44, 0.50), storminess)
+	sky_material.mie_color = Color(0.64, 0.72, 0.86).lerp(Color(0.55, 0.57, 0.62), storminess)
+	sky_material.rayleigh_coefficient = 4.4 + 1.0 * storminess
+	sky_material.rayleigh_color = Color(0.16, 0.34, 0.70).lerp(Color(0.42, 0.44, 0.50), storminess)
 	sky_material.sun_disk_scale = 1.6 * (1.0 - storminess)
-	_base_sky_energy = lerpf(1.0, 0.4, pow(storminess, 1.3))
+	# a physical sky is dim at low sun; lift it so golden hour reads bright, not gloomy (not below the horizon)
+	var dusk_boost := 1.0 + 1.2 * (1.0 - smoothstep(0.0, 0.45, sin(elev))) * smoothstep(-0.05, 0.05, sin(elev))
+	_base_sky_energy = lerpf(1.0, 0.4, pow(storminess, 1.3)) * dusk_boost
+	var want_night: Texture2D = _night_tex if elev < deg_to_rad(4.0) else null
+	if sky_material.night_sky != want_night:
+		sky_material.night_sky = want_night
 	sky_material.energy_multiplier = _base_sky_energy
-	var horizon := Color(0.62, 0.72, 0.84).lerp(Color(0.20, 0.22, 0.28), storminess)
+	var horizon := Color(0.58, 0.72, 0.90).lerp(Color(0.20, 0.22, 0.28), storminess)
 	horizon = horizon.lerp(Color(0.10, 0.12, 0.18), clampf(-sin(elev) * 6.0, 0.0, 1.0))
 	sky_material.ground_color = horizon * 0.5
 
@@ -293,8 +313,10 @@ func _process(dt: float) -> void:
 		flash.light_energy = _flash_strength * 6.0 * e * flick
 		sky_material.energy_multiplier = _base_sky_energy * (1.0 + _flash_strength * 1.6 * e * flick)
 		bolt.visible = _flash_age < 0.16
+		flash.visible = true
 	elif flash.light_energy != 0.0:
 		flash.light_energy = 0.0
+		flash.visible = false
 		sky_material.energy_multiplier = _base_sky_energy
 		bolt.visible = false
 
@@ -358,13 +380,13 @@ static func _build_cloud_dome() -> ArrayMesh:
 	var segments := 48
 	var radii := PackedFloat32Array()
 	var r := 150.0
-	while r < 12000.0:
+	while r < 14000.0:
 		radii.append(r)
 		r *= 1.32
 	verts.append(Vector3(0.0, 1400.0, 0.0))
 	for ri in radii.size():
 		var rad := radii[ri]
-		var y := 1400.0 - rad * rad / (2.0 * 30000.0)
+		var y := 1400.0 - rad * rad / (2.0 * 90000.0)   # ~300 m up at 14 km, never below the sea
 		for s in segments:
 			var a := TAU * float(s) / float(segments)
 			verts.append(Vector3(cos(a) * rad, y, sin(a) * rad))

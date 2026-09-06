@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://tests/OceanTest.gd" id="1_test"]
+[ext_resource type="PackedScene" path="res://ocean/Ocean.tscn" id="2_ocean"]
+
+[node name="OceanTest" type="Node3D"]
+script = ExtResource("1_test")
+
+[node name="Ocean" parent="." instance=ExtResource("2_ocean")]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.9945, 0.1045, 0, -0.1045, 0.9945, 0, 6, 0)
+fov = 55.0
+far = 20000.0

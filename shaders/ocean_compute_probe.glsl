@@ -31,8 +31,8 @@ layout(push_constant) restrict readonly uniform PushConstants {
 	float eps;
 };
 
-vec3 rogue_wave(vec2 p, vec4 a, vec4 b) {
-	if (b.x <= 0.001) return vec3(0.0);
+vec4 rogue_wave(vec2 p, vec4 a, vec4 b) {
+	if (b.x <= 0.001) return vec4(0.0);
 	vec2 dir = a.zw;
 	vec2 d = p - a.xy;
 	float x = dot(d, dir) - b.w;
@@ -44,7 +44,9 @@ vec3 rogue_wave(vec2 p, vec4 a, vec4 b) {
 	float prof = s * s - 0.16 * tr * tr;
 	float top = s * s;
 	vec2 push = dir * (top * top * min(b.x, b.y * 0.4) * 0.3 * lat_env);
-	return vec3(push.x, b.x * prof * lat_env, push.y);
+	float face_bias = mix(0.25, 1.0, smoothstep(-b.y * 0.35, b.y * 0.2, x));
+	float crest = smoothstep(0.80, 0.985, prof) * lat_env * face_bias;
+	return vec4(push.x, b.x * prof * lat_env, push.y, crest);
 }
 
 vec3 total_displacement(vec2 p) {
@@ -57,8 +59,8 @@ vec3 total_displacement(vec2 p) {
 		vec4 s = texture(displacements, vec3(p * sc.xy, float(i)));
 		d += vec3(s.x * misc.x, s.y, s.z * misc.x) * sc.z * f;
 	}
-	d += rogue_wave(p, rogue0, rogue0b);
-	d += rogue_wave(p, rogue1, rogue1b);
+	d += rogue_wave(p, rogue0, rogue0b).xyz;
+	d += rogue_wave(p, rogue1, rogue1b).xyz;
 	return d;
 }
 

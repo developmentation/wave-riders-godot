@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ocean/Ocean.gd" id="1_ocean"]
+[ext_resource type="Script" path="res://scripts/SkyWeather.gd" id="2_sky"]
+
+[node name="Ocean" type="Node3D"]
+script = ExtResource("1_ocean")
+
+[node name="SkyWeather" type="Node3D" parent="."]
+script = ExtResource("2_sky")

@@ -626,3 +626,139 @@ y = 0 and are scaled by `hull.length / variant.length`, keel at `keel_y(spec)` f
 - Airborne ribbon stop is ported (rows only laid while `submersion > 0`, live head detached in the air); verified by code and by the
   Hs 2.6 run (submersion dips to 0.2 between harness samples), not by a dedicated jump test.
 - `Boats.build_visual("sub")` is a placeholder; Main uses `boats/Submarine.tscn` for the real sub.
+
+## Ocean + sky/weather (`ocean/Ocean.tscn`, `ocean/Ocean.gd`, `ocean/WaveSim.gd`, `ocean/OceanPresets.gd`, `scripts/SkyWeather.gd`, `scripts/Quality.gd`, `shaders/ocean_*`, `tests/OceanTest.tscn`)
+
+Port of GodotOceanWaves (MIT, Ethan Truong) rebuilt for Godot 4.7 and the Wave Riders look: three
+band-limited JONSWAP/TMA + swell FFT cascades on the main `RenderingDevice`, a watertight
+concentric-ring clipmap (14.7 km, 150k tris on medium) that follows the camera, a water shader with the
+web game's froth model (whitecaps on the downwind face, wind streaks, bubble lace, aerated
+brightening), Fresnel-weighted sky reflection, GGX sun glitter, backlit crest SSS, depth-texture shore
+fade + surf line, weather crossfades, rain, clouds, lightning and analytic rogue waves. CPU sampling is a
+GPU probe pass (64x64 coarse grid over `probe_span` = 200 m + 40x40 fine grid over 30 m around the
+focus) that inverts the choppy displacement and is read back asynchronously
+(`RenderingDevice.buffer_get_data_async`, 1-3 frames of latency, never stalls).
+
+### API (`Ocean`, class_name Ocean, extends Node3D)
+
+```gdscript
+signal weather_changed                 # after a crossfade completes (or immediately for immediate=true)
+signal lightning(strength: float)      # forwarded from SkyWeather when a bolt strikes (audio hook)
+func set_weather(w: Dictionary, immediate := false)   # keys: wind_speed, wind_dir_deg, swell_hs, swell_period, choppiness, foam,
+    # water_color: Color (sRGB body colour), water_deep: Color (optional), sun_elev_deg, sun_azimuth_deg, cloud_cover, rain, fog,
+    # lightning_rate (flashes per ~6 s), optional swell_dir_deg (default wind_dir_deg - 25), spread. Missing keys keep defaults.
+    # Crossfade is 2 s (BLEND_SECONDS); angles lerp the short way; the spectrum is regenerated every frame while blending.
+func sample(x, z) -> Vector3            # (height, dh/dx, dh/dz); fine grid near the focus, coarse grid to +-100 m, ZERO outside
+func height_at(x, z) -> float
+func surface_velocity_y(x, z) -> float  # dh/dt from the two most recent probe grids (clamped +-12 m/s); also `last_dhdt` after sample()
+func normal_at(x, z) -> Vector3
+func set_focus(x, z)                    # centre of both probe grids (the player). Defaults to the camera xz until called.
+func set_quality(preset: String)        # "low" | "medium" | "high" | "ultra" -> FFT size, cascades, clipmap, sky/shadow settings
+func spawn_rogue(direction: Vector2, height: float, distance := 420.0, wavelength := 320.0)
+    # sech^2 soliton with a steepened front + crest foam, spawned `distance` m before the focus, travelling along `direction`
+    # at the deep-water phase speed; fades in over 4 s, dies 700 m past the focus. Two may be live. Also sampled by sample().
+var significant_wave_height: float      # 4*sqrt(m0) integrated from the simulated spectrum (band-limited to what the cascades carry)
+var measured_wave_height: float         # 4*std of the coarse probe grid (smoothed) - agrees with the above within ~5 % (rogues inflate it)
+var weather: Dictionary                 # current (blended) weather
+var probe_span: float                   # coarse grid width (60..600 m); the giant world wants 400
+var debug_view: int                     # 0 off, 1 foam channels, 2 normals, 3 cap/streak/lace (emissive)
+func get_harness_state() -> Dictionary  # hs, measured hs, readbacks, fallbacks, fft, quality (in group harness_state)
+func debug_map_stats() -> Dictionary    # tests only: sync readback of foam/bubble means and fold duty per cascade
+```
+
+`OceanPresets.WORLDS` / `OceanPresets.get_weather(id)` carry the per-world weather dictionaries ported
+from the web `Worlds.js` (hub, lagoon, swell, storm, giant, tempest, deep); Worlds.gd may use them or
+copy the numbers. `Quality.PRESETS[name]`, `Quality.get_preset(name)`, `Quality.apply_viewport(viewport,
+name)` (MSAA / FXAA / render scale; call it from Main next to `ocean.set_quality`).
+
+`SkyWeather` (class_name SkyWeather, child "SkyWeather" of Ocean.tscn): builds its own
+WorldEnvironment (PhysicalSkyMaterial, filmic tonemap, exponential fog, glow, SSR/SDFGI/volumetric fog
+per preset), a DirectionalLight3D sun (shadows per preset, hidden when below the horizon) plus a dim
+fill light, a flash light + bolt mesh for lightning, camera-following GPUParticles3D rain and a
+procedural cloud dome (`shaders/ocean_clouds.gdshader`). Ocean drives it every frame with
+`apply_weather(w, hs, immediate)` and `apply_quality(preset)`; it exposes `sun_vector`, `sun_color`,
+`storminess`, `environment`, `sun`. Do not add a second WorldEnvironment or DirectionalLight3D to the
+scene; if the game wants the sky elsewhere, move the node and call the two methods yourself.
+
+### Presets (`scripts/Quality.gd`)
+
+| preset | FFT | cascades | clipmap (cell / block / rings) | shadows | extras |
+| --- | --- | --- | --- | --- | --- |
+| low | 128 | 2 (tiles 1200 / 100 m) | 1.0 m / 64 / 9 (16 km) | off | no glow, no clouds, no AA, 0.85 render scale, long cascades alternate frames |
+| medium | 256 | 3 (2400 / 300 / 40 m) | 0.6 m / 96 / 9 (14.7 km) | 1 (hard, 2048 atlas) | glow, clouds, rain 1400, no MSAA/FXAA, bilinear normals, incremental sky radiance, long cascades alternate frames |
+| high | 512 | 3 | 0.4 m / 128 / 9 (13 km) | 2 splits (soft) | SSR, bicubic normals, MSAA 2x + FXAA, realtime sky, all cascades every frame |
+| ultra | 1024 | 3 | 0.4 m / 128 / 9 | 4 splits (soft high) | SSR, volumetric fog in storms, SDFGI, MSAA 4x |
+
+### Measured (tests/OceanTest.tscn, 1280x720, vsync off, weather cycle lagoon -> swell -> tempest)
+
+`node tools/godot-run.mjs --seconds 12 --tag ocean-medium --scene res://tests/OceanTest.tscn --script "throttle:12"`
+runs on the **RTX 3060 Laptop GPU** (Godot picks device 0). The Intel UHD is `--gpu-index 1`; measured by
+running the same harness command with that flag added:
+
+| GPU | low | medium | high |
+| --- | --- | --- | --- |
+| Intel UHD (this machine, device 1) | 128 fps median (99 min) | **63-66 fps median** (72 lagoon/swell, 57-64 tempest, 48 min during rain+rogue) | 22 fps (17 min) |
+| RTX 3060 Laptop | - | 540-580 fps median (other agents' runs on the same GPU pull it to ~250) | - |
+
+Intel medium budget (ms, swell): engine baseline with empty scene 8.6, water surface ~6, FFT sim ~2.5,
+sun shadows ~1.5, clouds+rain+glow ~2, probe < 0.5. Forward+ itself is the floor: consider the mobile
+renderer or a lower render scale if the full game needs headroom on the UHD.
+
+Screenshots (RTX): `tools/shots/ocean-medium/lagoon.png`, `swell.png`, `tempest.png`, `t012.png`
+(cycle, markers on the water). Intel: `tools/shots/ocean-medium-intel/{lagoon,swell,tempest}.png`.
+Extra worlds: `tools/shots/ocean-giant/t005.png`, `tools/shots/ocean-hub/t005.png`,
+`tools/shots/ocean-storm/t006.png`; rogue wave breaking over the marker grid: `tools/shots/ocean-rogue/t007.png`.
+Compared against the web frames (`C:\dev\games\boats\tools\shots\gate2-t007.png`, `storm3-t008.png`,
+`radial-giant-t020.png`): sharper wave detail and real sun glitter, foam that is texture rather than a
+grey smear, correct sky reflection at grazing angles; the lagoon is less saturated/contrasty than the
+web's turquoise and the tempest is closer to black than the web's violet-blue.
+
+### Test scene (`tests/OceanTest.tscn` / `.gd`)
+
+Camera 6 m above the surface (rides it) looking at the horizon, weather cycling every 4 s with per-weather
+screenshots saved into the harness shots dir, a 5x5 grid of red 0.9 m slabs placed every frame from
+`sample()` (height + normal) 12 m ahead - they sit on the water in every shot including the 7 m tempest
+and the rogue - a half-submerged pillar for the depth-texture surf line, a rogue launched during the
+tempest phase, and a least-squares estimate of the wave travel direction (`wave_dir_deg` in STATE: 10-30
+deg for lagoon/swell with wind 20-30 deg, 43-72 deg for the tempest with wind 70 / swell 45). User args
+after the harness ones: `--quality=low|medium|high|ultra`, `--hold=<world>` (no cycling), `--debug=1|2|3`
+(shader debug views), `--stats` (MAPSTATS lines with foam/fold duty), `--rogue` (launch at 2 s),
+`--ab=skip_sim+skip_probe+nowater+nosky+noshadow+nomsaa` (perf A/B). STATE also reports `gpu_ms`/`cpu_ms`
+from `viewport_set_measure_render_time`.
+
+### Integration steps
+
+1. Instance `res://ocean/Ocean.tscn` as `Main/Ocean`; it brings its own `SkyWeather` child (sky, sun, fog,
+   rain, lightning). Remove any other WorldEnvironment/DirectionalLight3D. Call
+   `Quality.apply_viewport(get_viewport(), preset)` and `ocean.set_quality(preset)` when the preset changes.
+2. On world entry: `ocean.set_weather(OceanPresets.get_weather(id), immediate)` (or the world def's dict
+   with the same keys); `ocean.probe_span = def.get("probe_span", 200)`.
+3. Every frame before physics: `ocean.set_focus(player.x, player.z)`; boats use `ocean.sample`,
+   `ocean.surface_velocity_y`; AI/gates anywhere within +-100 m of the focus get real heights, farther away
+   `sample()` returns ZERO (flat sea) - keep the camera boat as the focus.
+4. Tempest drama: `ocean.spawn_rogue(dir, 14.0)` on the web's timer (first 18 s, then every 35-50 s);
+   `ocean.lightning` for thunder. Ocean's process priority is -50 so its probe/sim run before gameplay nodes.
+5. New `class_name`s are only visible to `godot-run` after the class cache is refreshed:
+   `Godot_v4.7.2-stable_win64_console.exe --path . --headless --import` (or open the editor once).
+
+### Known issues / notes
+
+- `sample()` is exact only inside the coarse grid (+-100 m of the focus); outside it returns ZERO, not the
+  analytic mean. Boats far from the player float flat.
+- The water is drawn in the opaque pass (so SSR works on high/ultra); the "refraction" near shores is a
+  colour/foam blend from the depth texture, not a screen-space distortion. The shore effect is limited to
+  250-450 m from the camera.
+- The medium/low presets update the two long cascades on alternate frames (each carries the correct dt),
+  imperceptible on the surface but `surface_velocity_y` is a two-frame average there.
+- Foam calibration: per-cascade Jacobian threshold 0.60-0.72 (each cascade carries only its band, so
+  whole-sea J stays > 0.45 even in the tempest); fold duty is 2-3 % in the tempest, 0.8-1.4 % in the
+  storm, 0 in the lagoon (see `--stats`). Whitecaps therefore need wind > ~7 m/s, as in the web.
+- Foam is per-cascade-texture accumulated (300 m / 40 m tiles): visible repetition is unlikely but not
+  impossible on long straight runs. The 2400 m cascade repeats every 2.4 km.
+- Look gaps vs the web: lagoon is flatter/paler (sky reflection dominates, the web had a stronger
+  sun-beam body term and vivid sky); the physical sky is dull at the zenith; clouds are a single noise
+  layer without shading; no sea spray particles yet (the reference has one; `Quality.spray` is reserved).
+- Intermittent `WARNING: 1 ObjectDB instance was leaked at exit` on quit - an in-flight async readback
+  callback at shutdown; harmless, not an ERROR line, does not reproduce every run.
+- The stub (`ocean/StubOcean.gd`, `tests/StubOceanTest.tscn`) is left in place for reference; nothing
+  uses it.

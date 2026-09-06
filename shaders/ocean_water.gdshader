@@ -48,9 +48,11 @@ varying vec3 v_up_view;
 varying float v_foam;
 varying float v_fresnel;
 varying float v_rough;
+varying vec2 v_rogue_grad;
+varying float v_rogue_crest;
 
-vec3 rogue_wave(vec2 p, vec4 a, vec4 b) {
-	if (b.x <= 0.001) return vec3(0.0);
+vec4 rogue_wave(vec2 p, vec4 a, vec4 b) {
+	if (b.x <= 0.001) return vec4(0.0);
 	vec2 dir = a.zw;
 	vec2 d = p - a.xy;
 	float x = dot(d, dir) - b.w;
@@ -62,7 +64,9 @@ vec3 rogue_wave(vec2 p, vec4 a, vec4 b) {
 	float prof = s * s - 0.16 * tr * tr;
 	float top = s * s;
 	vec2 push = dir * (top * top * min(b.x, b.y * 0.4) * 0.3 * lat_env);
-	return vec3(push.x, b.x * prof * lat_env, push.y);
+	float face_bias = mix(0.25, 1.0, smoothstep(-b.y * 0.35, b.y * 0.2, x));
+	float crest = smoothstep(0.80, 0.985, prof) * lat_env * face_bias;
+	return vec4(push.x, b.x * prof * lat_env, push.y, crest);
 }
 
 void vertex() {
@@ -78,8 +82,17 @@ void vertex() {
 		d += vec3(s.x * chop, s.y, s.z * chop) * sc.z * f;
 		conv += -s.w * f;
 	}
-	d += rogue_wave(p, rogue0, rogue0b);
-	d += rogue_wave(p, rogue1, rogue1b);
+	vec4 r = rogue_wave(p, rogue0, rogue0b) + rogue_wave(p, rogue1, rogue1b);
+	v_rogue_grad = vec2(0.0);
+	v_rogue_crest = 0.0;
+	if (r.w > 0.0 || abs(r.y) > 0.001) {
+		float e = 1.0;
+		float rx = rogue_wave(p + vec2(e, 0.0), rogue0, rogue0b).y + rogue_wave(p + vec2(e, 0.0), rogue1, rogue1b).y;
+		float rz = rogue_wave(p + vec2(0.0, e), rogue0, rogue0b).y + rogue_wave(p + vec2(0.0, e), rogue1, rogue1b).y;
+		v_rogue_grad = vec2(rx - r.y, rz - r.y) / e;
+		v_rogue_crest = r.w;
+	}
+	d += r.xyz;
 	VERTEX += d;
 	v_uv = p;
 	v_wave_y = d.y;
@@ -136,6 +149,7 @@ void fragment() {
 		bubbles += n.w * f * (i == 1 ? 0.7 : 0.35);
 		mss_lost += cascade_mss[i] * (1.0 - f);
 	}
+	grad += v_rogue_grad;
 
 	// ------------------------------------------------------------- froth
 	vec2 q = v_uv;
@@ -146,7 +160,7 @@ void fragment() {
 	float covN = clamp(whitecap_cov / 0.16, 0.0, 1.0);
 	float cap = 0.0, streak = 0.0, lace = 0.0, aer = 0.0, fold = 0.0, foam = 0.0, foam_thin = 0.0;
 	vec4 fx1 = fx2;
-	if (whitecap_cov > 0.0012) {
+	if (whitecap_cov > 0.0012 || v_rogue_crest > 0.01) {
 	fx1 = texture(foam_tex, qs * vec2(0.145 * 0.22, 0.145) - vec2(t * 0.011, t * 0.008));
 	vec4 fx3 = texture(foam_tex, qs * vec2(0.085, 0.50) - vec2(t * 0.016, t * 0.006));
 	float fdn = dot(grad, wd) / (length(grad) + 0.06);
@@ -156,10 +170,10 @@ void fragment() {
 	float spill = smoothstep(spill_knee, spill_knee + 0.5, conv) * smoothstep(0.003, 0.02, covN);
 	fold = clamp((whitecap - (1.0 - conv)) * 3.0, 0.0, 1.0);
 	float foldS = smoothstep(0.12, 0.60, fold);
-	float cap_src = (foldS * 1.3 + spill * 0.85 + foam_acc * 12.0 * foam_strength) * cap_face;
+	float cap_src = (foldS * 1.3 + spill * 0.85 + foam_acc * 12.0 * foam_strength) * cap_face + v_rogue_crest * 1.2;
 	float cap_tex = fx1.r * 0.55 + fx2.r * 0.45;
 	float cap_carve = cap_src * (0.40 + cap_tex * 1.15);
-	float cap_on = mix(0.60, 0.34, covN);
+	float cap_on = mix(0.60, 0.34, max(covN, v_rogue_crest));
 	cap = smoothstep(cap_on, cap_on + 0.20, cap_carve);
 	float cap_core = smoothstep(cap_on + 0.28, cap_on + 0.62, cap_carve);
 	float raft = smoothstep(0.02, 0.10, bubbles);
@@ -181,7 +195,7 @@ void fragment() {
 	float scene_lin = -vp.z / vp.w;
 	float frag_lin = -VERTEX.z;
 	float water_depth = max(scene_lin - frag_lin, 0.0);
-	float shore = 1.0 - smoothstep(0.0, shore_depth, water_depth);
+	float shore = (1.0 - smoothstep(0.0, shore_depth, water_depth)) * (1.0 - smoothstep(250.0, 450.0, v_dist));
 	float shore_foam = smoothstep(0.55, 1.0, shore) * smoothstep(0.35, 0.7, fx2.g * 0.6 + fx1.g * 0.4 + 0.25 * sin(time * 1.3 + v_uv.x * 0.7 + v_uv.y * 0.9) + 0.25);
 	foam = max(foam, shore_foam);
 
@@ -198,6 +212,8 @@ void fragment() {
 
 	// ------------------------------------------------------------ colour
 	vec3 body = water_scatter;
+	// crests are thinner and brighter, troughs deeper and darker
+	body *= 0.86 + 0.28 * clamp(v_wave_y / max(hs, 0.5) + 0.5, 0.0, 1.0);
 	body = mix(body, water_scatter * 0.5 + vec3(0.22, 0.26, 0.29), aer * 0.55);
 	body += water_scatter * bubbles * 0.5;
 	body = mix(body, shore_color, shore * 0.55);
@@ -233,7 +249,7 @@ void light() {
 	vec3 sun = LIGHT_COLOR * ATTENUATION;
 	float up = clamp(dot(L, v_up_view), 0.0, 1.0);
 	// water body: the beam entering the surface (depends on sun height, not N.L); foam: wrapped Lambert
-	float body_term = (0.25 + 0.75 * up) * (1.0 - v_fresnel);
+	float body_term = (0.4 + 0.6 * up) * (1.0 - v_fresnel);
 	float wrap = clamp((ndl + 0.5) / 1.5, 0.0, 1.0);
 	float diff = mix(body_term, wrap * 0.9, v_foam);
 	// backlit subsurface scattering on thin crests facing the camera against the sun
