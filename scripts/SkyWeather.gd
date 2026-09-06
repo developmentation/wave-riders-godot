@@ -250,7 +250,8 @@ func apply_weather(w: Dictionary, hs: float, immediate := false) -> void:
 	sky_material.energy_multiplier = _base_sky_energy
 	var horizon := Color(0.58, 0.72, 0.90).lerp(Color(0.20, 0.22, 0.28), storminess)
 	horizon = horizon.lerp(Color(0.10, 0.12, 0.18), clampf(-sin(elev) * 6.0, 0.0, 1.0))
-	sky_material.ground_color = horizon * 0.5
+	# Below the horizon the sky stands in for the sea wherever the mesh has no pixel: a sea tint, never black.
+	sky_material.ground_color = Color(0.05, 0.13, 0.22).lerp(horizon * 0.6, storminess)
 
 	# fog: distance haze always, grey murk in storms
 	environment.fog_density = 0.0004 + 0.011 * fog + 0.0015 * rain_amt

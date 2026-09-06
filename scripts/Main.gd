@@ -86,7 +86,8 @@ func _ready() -> void:
 	if ocean:
 		_has["ocean"] = true
 		# The real ocean may carry its own sky (WorldEnvironment + sun): drop the scene defaults then.
-		if not ocean.find_children("*", "WorldEnvironment", true, false).is_empty() or not ocean.find_children("*", "DirectionalLight3D", true, false).is_empty():
+		# SkyWeather builds its WorldEnvironment/sun in _ready, so test for the node itself, not its children.
+		if ocean.get_node_or_null("SkyWeather") != null or not ocean.find_children("*", "WorldEnvironment", true, false).is_empty() or not ocean.find_children("*", "DirectionalLight3D", true, false).is_empty():
 			for n in ["WorldEnvironment", "Sun"]:
 				var old := get_node_or_null(n)
 				if old:

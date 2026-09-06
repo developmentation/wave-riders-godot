@@ -34,9 +34,11 @@ const PRESETS := {
 
 ## Clipmap geometry: finest cell (m), cells per side of the centre block, number of rings (each doubles).
 const CLIPMAPS := {
-	"low": {"cell": 1.0, "block": 64, "rings": 9},
-	"medium": {"cell": 0.6, "block": 96, "rings": 9},
-	"high": {"cell": 0.4, "block": 128, "rings": 9},
+	# Rings reach 30-60 km so the mesh always passes the geometric horizon (~12 km from a 10 m camera);
+	# a mesh that ends short shows the sky's ground colour as black gashes between the far crests.
+	"low": {"cell": 1.0, "block": 64, "rings": 10},
+	"medium": {"cell": 0.6, "block": 96, "rings": 11},
+	"high": {"cell": 0.4, "block": 128, "rings": 11},
 }
 
 static var current := "medium"

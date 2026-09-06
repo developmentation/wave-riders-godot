@@ -33,7 +33,7 @@ void fragment() {
 	vec3 col = base * (ambient * 0.75 + sun_color * (0.45 + 0.35 * pow(toward_sun, 3.0)) * max(sun_dir.y * 0.8 + 0.2, 0.0));
 	col *= mix(1.0, 0.55, thick * density);
 	float dist = length(v_world.xz - CAMERA_POSITION_WORLD.xz);
-	float fade = 1.0 - smoothstep(3500.0, 8500.0, dist);
+	float fade = 1.0 - smoothstep(9000.0, 16000.0, dist);   // the deck must reach the horizon in an overcast
 	ALBEDO = col;
 	ALPHA = c * fade * clamp(0.45 + density * 0.8, 0.3, 1.0);
 }
