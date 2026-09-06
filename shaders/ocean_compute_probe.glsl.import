@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://b0oqjx6cq34gc"
+path="res://.godot/imported/ocean_compute_probe.glsl-83f3393e2c92fac0af724e2bb2fe0614.res"
+
+[deps]
+
+source_file="res://shaders/ocean_compute_probe.glsl"
+dest_files=["res://.godot/imported/ocean_compute_probe.glsl-83f3393e2c92fac0af724e2bb2fe0614.res"]
+
+[params]
+

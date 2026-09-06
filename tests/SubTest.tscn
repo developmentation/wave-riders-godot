@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://c1wave0riders0main"]
+[gd_scene load_steps=6 format=3 uid="uid://c1wave0riders0subtest"]
 
-[ext_resource type="Script" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="Script" path="res://tests/SubTest.gd" id="1_test"]
+[ext_resource type="Script" path="res://ocean/StubOcean.gd" id="2_stub"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.2, 0.5, 0.9, 1)
@@ -21,8 +22,8 @@ glow_enabled = true
 glow_intensity = 0.4
 glow_bloom = 0.05
 
-[node name="Main" type="Node3D"]
-script = ExtResource("1_main")
+[node name="SubTest" type="Node3D"]
+script = ExtResource("1_test")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("env")
@@ -31,3 +32,12 @@ environment = SubResource("env")
 transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 30, 0)
 light_energy = 1.4
 shadow_enabled = true
+
+[node name="Ocean" type="Node3D" parent="."]
+script = ExtResource("2_stub")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.94, 0.342, 0, -0.342, 0.94, 0, 6, 14)
+fov = 58.0
+near = 0.2
+far = 1500.0

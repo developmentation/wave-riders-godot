@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://c1wave0riders0submarine"]
+
+[ext_resource type="Script" path="res://boats/SubPhysics.gd" id="1_phys"]
+[ext_resource type="Script" path="res://boats/SubmarineVisual.gd" id="2_vis"]
+
+[node name="Submarine" type="Node3D"]
+script = ExtResource("1_phys")
+
+[node name="Visual" type="Node3D" parent="."]
+script = ExtResource("2_vis")

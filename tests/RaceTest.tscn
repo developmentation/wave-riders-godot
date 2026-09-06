@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://c1wave0riders0racetest"]
+
+[ext_resource type="PackedScene" path="res://scenes/Main.tscn" id="1_main"]
+[ext_resource type="Script" path="res://tests/race-check.gd" id="2_check"]
+
+[node name="RaceTest" type="Node"]
+
+[node name="Main" parent="." instance=ExtResource("1_main")]
+start_world = "devcourse"
+stubs = "ocean,world,hud,controls"
+ai_rubber_band = false
+autopilot = true
+
+[node name="RaceCheck" type="Node" parent="."]
+script = ExtResource("2_check")

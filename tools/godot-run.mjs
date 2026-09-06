@@ -1,6 +1,7 @@
 // Runs the Godot project from the command line with the Harness autoload,
 // collects PERF/STATE/SHOT lines and errors. Mirrors the web build's game-smoke.
-//   node tools/godot-run.mjs --seconds 10 --script "throttle:5,steer_right:2,throttle:3" --tag demo [--scene res://scenes/X.tscn] [--every 2]
+//   node tools/godot-run.mjs --seconds 10 --script "throttle:5,steer_right:2,throttle:3" --tag demo [--scene res://scenes/X.tscn] [--every 2] [--extra "--world=storm"]
+// --extra passes extra user args (space separated) through to the scene after the harness args.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,6 +19,7 @@ const gargs = ['--path', proj, '--windowed', '--disable-vsync', '--resolution', 
 if (getArg('scene')) gargs.push(getArg('scene'));
 gargs.push('--', `--shots=${shots}`, `--seconds=${seconds}`, `--script=${getArg('script', 'throttle:5,steer_right:2,throttle:3')}`, '--perf');
 if (getArg('every')) gargs.push(`--every=${getArg('every')}`);
+if (getArg('extra')) gargs.push(...getArg('extra').split(/\s+/).filter(Boolean));
 console.log('>', path.basename(godot), gargs.join(' '));
 const t0 = Date.now();
 const r = spawnSync(godot, gargs, { encoding: 'utf8', timeout: (parseFloat(seconds) + 120) * 1000, maxBuffer: 64 * 1024 * 1024 });
