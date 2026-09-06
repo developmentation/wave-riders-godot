@@ -16,8 +16,10 @@ fs.rmSync(shots, { recursive: true, force: true });
 fs.mkdirSync(shots, { recursive: true });
 const seconds = getArg('seconds', '10');
 const gargs = ['--path', proj, '--windowed', '--disable-vsync', '--resolution', getArg('res', '1280x720')];
+if (getArg('gpu')) gargs.push('--gpu-index', getArg('gpu'));   // 0 = default (RTX here), 1 = Intel UHD
 if (getArg('scene')) gargs.push(getArg('scene'));
 gargs.push('--', `--shots=${shots}`, `--seconds=${seconds}`, `--script=${getArg('script', 'throttle:5,steer_right:2,throttle:3')}`, '--perf');
+if (getArg('extra')) gargs.push(...getArg('extra').split(' ').filter(Boolean));   // pass-through user args, e.g. --extra "--skip=lagoon"
 if (getArg('every')) gargs.push(`--every=${getArg('every')}`);
 if (getArg('extra')) gargs.push(...getArg('extra').split(/\s+/).filter(Boolean));
 console.log('>', path.basename(godot), gargs.join(' '));
