@@ -112,6 +112,9 @@ void fragment() {
 	// wet edge: a thin aerated veil hugging the hull that never fully clears
 	float veil = (1.0 - smoothstep(0.22, 0.60, v)) * (0.20 + 0.35 * strength) * (0.35 + 0.65 * noise);
 	float a = max(foam, veil);
+	// The outer ring must always dissolve to nothing: on wide hulls the sheet otherwise ends in a
+	// straight edge behind the transom.
+	a *= 1.0 - smoothstep(0.55, 1.0, v);
 	if (a < 0.004) { discard; }
 	ALBEDO = vec3(0.93, 0.96, 0.985) * (1.0 + 0.25 * bubbles + 0.25 * pulse + 0.15 * bow);
 	ROUGHNESS = 0.9;

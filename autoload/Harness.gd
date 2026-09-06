@@ -63,6 +63,18 @@ func _next_step() -> void:
 		if a != "throttle":
 			Input.action_release(a)
 			_held.erase(a)
+	if s.action == "pause" or s.action == "camera" or s.action == "reset_boat" or s.action == "horn":
+		# One-shot actions: send a real key event so is_action_just_pressed() sees an edge.
+		var key: int = {"pause": KEY_ESCAPE, "camera": KEY_C, "reset_boat": KEY_R, "horn": KEY_H}[s.action]
+		var ev := InputEventKey.new()
+		ev.physical_keycode = key
+		ev.pressed = true
+		Input.parse_input_event(ev)
+		var up := InputEventKey.new()
+		up.physical_keycode = key
+		up.pressed = false
+		get_tree().create_timer(0.15).timeout.connect(func(): Input.parse_input_event(up))
+		return
 	Input.action_press(s.action)
 	_held[s.action] = true
 

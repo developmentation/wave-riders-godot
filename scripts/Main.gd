@@ -55,6 +55,7 @@ var _has := {}
 var _transition_portals: Node
 var _stub_set: Dictionary = {}
 var _quality_arg := ""
+var _pick_arg := ""   # --pick=<boat>: dev path through the garage (select_boat then GO) like a player would
 
 
 # ------------------------------------------------------------------ boot
@@ -138,6 +139,9 @@ func _ready() -> void:
 	controls = get_node_or_null("/root/Controls")
 	if controls:
 		_has["controls"] = true
+		# Controls must keep polling while the tree is paused, or its stale "pause" action
+		# re-fires every frame and the pause menu toggles on and off (one-frame flicker).
+		controls.process_mode = Node.PROCESS_MODE_ALWAYS
 	if force_stubs or _stub_set.has("controls"):
 		controls = null
 	if audio and audio.has_method("unlock"):
@@ -220,6 +224,8 @@ func _parse_args() -> void:
 				laps_override = int(val)
 			"--quality":
 				_quality_arg = val
+			"--pick":
+				_pick_arg = val
 	# Under the CLI harness with no --skip, go straight to the hub (the web smoke's ?skip=title).
 	if start_world == "" and not OS.get_cmdline_user_args().is_empty():
 		start_world = "title"
@@ -287,6 +293,11 @@ func start() -> void:
 		enter_hub()
 	elif start_world == "garage":
 		show_garage()
+		if _pick_arg != "":
+			await get_tree().create_timer(1.5).timeout
+			select_boat(_pick_arg, 0)
+			await get_tree().create_timer(1.0).timeout
+			enter_hub()
 	else:
 		show_title()
 
