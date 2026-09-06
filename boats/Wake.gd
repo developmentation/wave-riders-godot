@@ -369,7 +369,8 @@ func _setup_hull() -> void:
 		_olz[s] = lz
 		_onx[s] = nx / len
 		_onz[s] = nz / len
-	_skirt_base = 0.40 + 0.30 * float(hull.width)   # metres outward at rest
+	# Outward reach saturates for big hulls: a ferry-sized ring poked out behind the transom as a flat sheet.
+	_skirt_base = 0.40 + 0.30 * minf(float(hull.width), 3.0)   # metres outward at rest
 	_hull_ready = true
 
 
@@ -506,6 +507,7 @@ func update(dt: float) -> void:
 	# strength eases in and out so a hull skipping off a crest does not flicker
 	var str_target := wet * clampf(0.22 + wake_strength * 0.9 + smoothstep(1.0, 9.0, speed) * 0.5, 0.0, 1.0)
 	_skirt_str += (str_target - _skirt_str) * minf(1.0, dt * (5.0 if str_target < _skirt_str else 8.0))
+	_skirt_str = minf(_skirt_str, clampf(3.5 / maxf(float(body.hull.width), 1.0), 0.45, 1.0))
 	_pulse = maxf(_pulse * exp(-dt * 3.0), float(b.slap_impulse))
 	var k_str := _skirt_str
 	var k_pulse := minf(1.0, _pulse)
