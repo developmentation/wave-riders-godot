@@ -181,7 +181,12 @@ func _ready() -> void:
 	if hud.has_method("set_boats") and _res("res://boats/Boats.gd"):
 		var consts: Dictionary = load("res://boats/Boats.gd").get_script_constant_map()
 		if consts.has("CATALOG"):
-			hud.set_boats(consts.CATALOG.values())
+			var list: Array = []
+			for b in consts.CATALOG.values():
+				if b.get("id", "") != "sub":   # the sub is reached through the Deep Run portal, not the garage
+					list.append(b)
+			hud.set_boats(list)
+			print("[main] garage boats: ", list.size())
 	if bool(prefs.get("matte", false)):
 		set_matte(true)
 	if bool(prefs.get("muted", false)):
@@ -280,6 +285,8 @@ func start() -> void:
 		enter_world(start_world)
 	elif start_world == "hub":
 		enter_hub()
+	elif start_world == "garage":
+		show_garage()
 	else:
 		show_title()
 

@@ -189,7 +189,7 @@ const WORLDS := {
 		"weather": {
 			"key": "squall",
 			"patch": {
-				"wind_speed": 10.0, "gustiness": 0.5, "swell_hs": 2.2, "swell_period": 9.5, "choppiness": 1.3, "spread": 0.8,
+				"wind_speed": 14.0, "gustiness": 0.5, "swell_hs": 4.5, "swell_period": 10.5, "choppiness": 1.3, "spread": 0.8,
 				"rain": 0.9, "storm": 0.85, "fog": 0.18, "spray": 0.9, "lightning_rate": 0.6,
 				"sun_elevation": 0.2, "sun_azimuth": 3.0, "sun_intensity": 14.0, "turbidity": 6.0,
 				"cloud_coverage": 0.76, "cloud_density": 1.15, "cloud_bottom": 600.0, "cloud_top": 5200.0, "cloud_anvil": 0.6,
@@ -268,7 +268,7 @@ const WORLDS := {
 			"key": "storm",
 			"patch": {
 				# Beaufort 11 base; wind sea trimmed so the total integrates to Hs ~8 m
-				"wind_speed": 23.0, "gustiness": 0.6, "swell_hs": 4.2, "swell_period": 11.5, "choppiness": 1.4, "spread": 0.9,
+				"wind_speed": 28.0, "gustiness": 0.6, "swell_hs": 13.0, "swell_period": 14.5, "choppiness": 1.35, "spread": 0.9,
 				"rain": 1.0, "storm": 1.0, "fog": 0.5, "spray": 1.4, "lightning_rate": 1.5,
 				# sun just under the horizon: the sky is lit by the deck's own glow and the lightning
 				"sun_elevation": -0.12, "sun_azimuth": 2.9, "sun_intensity": 6.0, "turbidity": 7.0,

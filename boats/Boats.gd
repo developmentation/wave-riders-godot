@@ -1037,6 +1037,39 @@ static func build_sailboat(B: Builder, vis: BoatVisual, spec: Dictionary, color_
 	vis.parts.tiller = tiller_pivot
 
 
+## Kenney ocean liner as a passenger ferry: the hull comes from the GLB; a captain stands on the
+## bow deck and two passengers wave from the rail so the ship reads as crewed at any distance.
+static func build_ferry(B: Builder, vis: BoatVisual, spec: Dictionary, color_index: int) -> void:
+	var color: String = spec.colors[color_index % spec.colors.size()]
+	var lv := load_variant(vis, spec, color_index, 0.5)
+	var rig: Node3D = lv.rig
+	var s: float = lv.s
+	var ds := 1.25
+	var deck := Vector3(0, 1.45, 5.2) * s
+	deck.y += 0.64 * ds
+	var wheel_pos := deck + Vector3(0, 0.45, 0.55 * s)
+	var wheel := helm_wheel(B, wheel_pos, 0.22, -0.4)
+	rig.add_child(wheel)
+	vis.parts.wheel = wheel
+	var captain := build_driver(B, {
+		"scale": ds, "vest": "white", "shirt": "navy", "helmet": "white", "hair": false, "shorts": "navy",
+		"hands": reach_for(deck, wheel_pos, ds, 0.2), "pitch": 0.0, "legs": "standing",
+	})
+	captain.position = deck
+	rig.add_child(captain)
+	_add_driver(vis, captain)
+	for side in [-1.0, 1.0]:
+		var p := Vector3(side * 1.55, 1.45, -0.5) * s
+		p.y += 0.64 * ds
+		var kid := build_driver(B, {
+			"scale": ds, "vest": color, "shirt": "yellow", "helmet": "red" if side < 0.0 else "sky", "hair": true, "shorts": "blue",
+			"hands": reach_for(p, p + Vector3(side * 0.6, 0.9, 0.0), ds, 0.2), "pitch": 0.0, "legs": "standing",
+		})
+		kid.position = p
+		kid.rotation.y = side * 1.4
+		rig.add_child(kid)
+
+
 static func build_fishing(B: Builder, vis: BoatVisual, spec: Dictionary, color_index: int) -> void:
 	var color: String = spec.colors[color_index % spec.colors.size()]
 	var lv := load_variant(vis, spec, color_index, 0.5)
@@ -1341,6 +1374,8 @@ static func build_visual(id: String, color_index := 0) -> Node3D:
 			build_towboat(B, vis, spec, color_index)
 		"rowboat":
 			build_rowboat(B, vis, spec, color_index)
+		"ferry":
+			build_ferry(B, vis, spec, color_index)
 		"sub":
 			build_sub(B, vis, color)
 	vis.triangles = B.tris

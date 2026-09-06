@@ -120,6 +120,10 @@ func _ready() -> void:
 	_mat.set_shader_parameter("displacements", _disp_tex)
 	_mat.set_shader_parameter("normals", _norm_tex)
 	_surface.material_override = _mat
+	# The water samples DEPTH_TEXTURE, which Godot renders in the transparent stage; sorted by its
+	# camera-centred origin it would draw last and paint over rain, portals and spray. Draw it first
+	# among transparents; depth_draw_always in the shader then writes depth for everything after it.
+	_mat.render_priority = -100
 	add_child(_surface)
 	_from = weather.duplicate()
 	_target = weather.duplicate()

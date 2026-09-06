@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode world_vertex_coords, cull_disabled, specular_schlick_ggx;
+render_mode world_vertex_coords, cull_disabled, specular_schlick_ggx, depth_draw_always;
 // Wave Riders ocean surface. Displacement/normal maps come from ocean/WaveSim.gd (3 FFT cascades);
 // the froth model follows the web game's OceanMesh.js (whitecaps on the downwind face, wind streaks,
 // bubble lace, aerated brightening); lighting is Fresnel-weighted sky reflection (Godot ambient/radiance),
